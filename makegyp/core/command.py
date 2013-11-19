@@ -1,5 +1,9 @@
 import argparse
+import imp
+import os
 import sys
+
+import makegyp
 
 
 def create(args):
@@ -9,7 +13,18 @@ def edit(args):
     print 'edit:', args
 
 def install(args):
-    print 'install', args
+    package_root = os.path.dirname(makegyp.__file__)
+    formula_root = os.path.join(package_root, 'formula')
+    try:
+        find_module_result = imp.find_module(args.library_name, [formula_root])
+    except ImportError:
+        print 'No matched library found:', args.library_name
+        exit(1)
+
+    module = imp.load_module(args.library_name, *find_module_result)
+    class_ = getattr(module, args.library_name.title())
+    instance = class_()
+    instance.install()
 
 
 # Command configuration
@@ -42,4 +57,5 @@ def execute_from_command_line():
         return
 
     args = parser.parse_args()
+    args.library_name = args.library_name.lower()
     args.func(args)
