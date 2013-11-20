@@ -18,7 +18,7 @@ def install(args):
     try:
         find_module_result = imp.find_module(args.library_name, [formula_root])
     except ImportError:
-        print 'No matched library found:', args.library_name
+        print 'No matched formula found for library:', args.library_name
         exit(1)
 
     module = imp.load_module(args.library_name, *find_module_result)
