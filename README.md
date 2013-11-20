@@ -10,6 +10,15 @@ The idea behind makegyp is inspired by [Homebrew](http://brew.sh) and
 for installing a library. And like npm, C or C++ libraries will be installed
 as modules under a specific directory.
 
+Why makegyp?
+-------------
+I was trying to find a better way to develop my C++ projects. I chose Google's
+[GYP](https://code.google.com/p/gyp/) build system as my weapon to build
+my products. But if I want to easily use existing C or C++ libraries as
+dependencies, I need to convert them from other build system to GYP before I
+can use. It's really cumbersome to do such work manually and repeatly. So I
+created this project trying to automate that work.
+
 How does it work?
 -----------------
 Each C or C++ library will be supported by implementing an inherited Formula
