@@ -60,15 +60,18 @@ class Formula(object):
         # Determines the directory to keep config files:
         config_dir = os.path.join(self.config_root, gyp.get_os(),
                                   gyp.get_arch())
-        try:
-            os.makedirs(config_dir)  # make sure the directory existed
-        except OSError as error:
-            if error.errno != 17:
-                raise error
+
         # Copies each generated config file:
         for config in self.parser.parse_configure(output):
             src = os.path.join(self.tmp_package_path, config)
             dest = os.path.join(config_dir, config)
+            # make sure the directory existed
+            try:
+                os.makedirs(os.path.dirname(dest))
+            except OSError as error:
+                if error.errno != 17:
+                    raise error
+
             shutil.copyfile(src, dest)
             print 'Generated config file: %s' % dest
 
