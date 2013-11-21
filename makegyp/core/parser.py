@@ -16,7 +16,6 @@ class MakeParser(Parser):
 
             config_file = re.sub(pattern, r'\1', line)
             if config_file:
-                print 'Generated config file: %s' % config_file
                 result.append(config_file)
 
         return result

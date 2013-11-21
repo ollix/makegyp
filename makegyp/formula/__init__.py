@@ -1,12 +1,17 @@
 import json
 import os
+import shutil
 import subprocess
 import tarfile
 import tempfile
 import urllib2
 
 from makegyp.core import archive
+from makegyp.core import gyp
 from makegyp.core import parser
+
+
+kConfigRootDirectoryName = "gyp_config"
 
 
 class Formula(object):
@@ -43,15 +48,27 @@ class Formula(object):
         self.package_name, ext = archive.splitext(filename)
         self.tmp_package_path = os.path.join(self.tmp_dir, self.package_name)
 
-    def __configure(self):
-        output = self.__process(self.configure())
-        log_file_path = os.path.join(self.tmp_package_path,
-                                     'makegyp_configure_log')
-        log_file = open(log_file_path, 'w')
-        log_file.write(output)
-        log_file.close()
+        # Determines the root path to keep generated config files:
+        self.config_root = os.path.join(self.tmp_package_path,
+                                        kConfigRootDirectoryName)
 
-        self.parser.parse_configure(output)
+    def __configure(self):
+        output = self.__process('makegyp_configure_log', self.configure())
+
+        # Determines the directory to keep config files:
+        config_dir = os.path.join(self.config_root, gyp.get_os(),
+                                  gyp.get_arch())
+        try:
+            os.makedirs(config_dir)  # make sure the directory existed
+        except OSError as error:
+            if error.errno != 17:
+                raise error
+        # Copies each generated config file:
+        for config in self.parser.parse_configure(output):
+            src = os.path.join(self.tmp_package_path, config)
+            dest = os.path.join(config_dir, config)
+            shutil.copyfile(src, dest)
+            print 'Generated config file: %s' % dest
 
     def __download(self):
         if os.path.isdir(self.tmp_package_path):
@@ -75,14 +92,38 @@ class Formula(object):
         print 'Extracting archive \'%s\'' % file_path
         archive.extract_archive(file_path)
 
-    def __process(self, args):
-        try:
-            output = subprocess.check_output(args)
-        except subprocess.CalledProcessError as e:
-            print 'Failed to process the formula: %s' % e.output
-            esxit(1)
-        else:
-            return output
+    def __process(self, log_name, args):
+        """Process the args and preserve the output.
+
+        Returns the output of the processed arguments.
+        """
+        log_file_path = os.path.join(self.tmp_package_path, log_name)
+        identifier = "# %s\n" % ' '.join(args)
+
+        # Checks if the log can be reused:
+        needs_to_process = True
+        if os.path.isfile(log_file_path):
+            log_file = open(log_file_path, 'r')
+            if log_file.readline() == identifier:
+                # It's ok to reuse the log
+                needs_to_process = False
+                output = log_file.read()
+            log_file.close()
+
+        if needs_to_process:
+            try:
+                output = subprocess.check_output(args)
+            except subprocess.CalledProcessError as e:
+                print 'Failed to process the formula: %s' % e.output
+                esxit(1)
+
+            # Preserves the output for debug and reuse:
+            log_file = open(log_file_path, 'w')
+            log_file.write(identifier)
+            log_file.write(output)
+            log_file.close()
+
+        return output
 
     def __reset_gyp(self):
         gyp = self.gyp
