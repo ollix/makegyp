@@ -20,6 +20,10 @@ class MakeParser(Parser):
 
         return result
 
+    def parse_make(self, source):
+        pass
+
+
 if __name__ == "__main__":
     pattern = re.compile(r'config.status:\screating\s(.*config\.h)')
     string = "config.status: creating macosx/English.lproj/Makefile"

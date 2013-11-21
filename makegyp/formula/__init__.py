@@ -1,3 +1,4 @@
+import ftplib
 import json
 import os
 import shutil
@@ -5,6 +6,7 @@ import subprocess
 import tarfile
 import tempfile
 import urllib2
+import urlparse
 
 from makegyp.core import archive
 from makegyp.core import gyp
@@ -75,18 +77,35 @@ class Formula(object):
             print 'Use cached package at \'%s\'' % self.tmp_package_path
             return
 
-        file_path = os.path.join(self.tmp_dir, os.path.basename(self.url))
+        filename = os.path.basename(self.url)
+        file_path = os.path.join(self.tmp_dir, filename)
         if not os.path.isfile(file_path):
             print 'Downloading %s' % self.url
-            package = urllib2.urlopen(self.url)
-            if package.getcode() != 200:
-                print 'Failed to download \'%s\' (error code: %d)' % \
-                      (filename, package.getcode())
-                exit(1)
 
+            url_info = urlparse.urlparse(self.url)
             local_package = open(file_path, 'wb')
-            local_package.write(package.read())
+            failed = False
+
+            if url_info.scheme == 'http':
+                package = urllib2.urlopen(self.url)
+                if package.getcode() == 200:
+                    local_package.write(package.read())
+                else:
+                    print 'Failed to download \'%s\' (error code: %d)' % \
+                          (filename, package.getcode())
+                    failed = True
+            elif url_info.scheme == 'ftp':
+                ftp = ftplib.FTP(url_info.netloc)
+                ftp.login()
+                ftp.retrbinary('RETR %s' % url_info.path, local_package.write)
+                ftp.quit()
+            else:
+                print 'URL is not supported: %s' % self.url
+                failed = True
+
             local_package.close()
+            if failed:
+                exit(1)
 
         # Extracts the archive:
         print 'Extracting archive \'%s\'' % file_path
