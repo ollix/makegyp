@@ -126,14 +126,12 @@ class Formula(object):
         return output
 
     def __reset_gyp(self):
-        gyp = self.gyp
-
-        gyp.clear()
+        self.gyp.clear()
 
         # Initializes target_defaults:
-        gyp['target_defaults'] = dict()
-        gyp['target_defaults']['default_configuration'] = 'Debug'
-        gyp['target_defaults']['configurations'] = {
+        self.gyp['target_defaults'] = dict()
+        self.gyp['target_defaults']['default_configuration'] = 'Debug'
+        self.gyp['target_defaults']['configurations'] = {
             'Debug': {
                 'defines': ['DEBUG', '_DEBUG'],
                 'msvs_settings': {
@@ -151,12 +149,19 @@ class Formula(object):
                 },
             },
         }
-        gyp['target_defaults']['msvs_settings'] = {
+        self.gyp['target_defaults']['msvs_settings'] = {
             'VCLinkerTool': {'GenerateDebugInformation': 'true'},
         }
+        self.gyp['variables'] = {
+            'target_arch%': gyp.get_arch(),
+        }
+        self.gyp['target_defaults']['include_dirs'] = [
+            # platform and arch-specific headers
+            '%s/<(OS)/<(target_arch)' % kConfigRootDirectoryName
+        ]
 
         # Initializes targets
-        gyp['targets'] = list()
+        self.gyp['targets'] = list()
 
     def configure(self):
         return list()
