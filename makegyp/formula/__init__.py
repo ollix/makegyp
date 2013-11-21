@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tarfile
+import tempfile
 import urllib2
 
 from makegyp.core import archive
@@ -24,7 +25,7 @@ class Formula(object):
             print "Created 'gyp_deps' directory."
 
         # Creates the temporary directory:
-        self.tmp_dir = os.path.join(self.deps_dir, '.tmp')
+        self.tmp_dir = os.path.join(tempfile.gettempdir(), 'makegyp')
         try:
             os.mkdir(self.tmp_dir)
         except OSError as error:
