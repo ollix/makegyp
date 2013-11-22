@@ -17,7 +17,7 @@ kConfigRootDirectoryName = "gyp_config"
 
 
 class Formula(object):
-    parser = parser.Parser()
+    parser = None
     url = None
     sha1 = None
 
@@ -114,6 +114,10 @@ class Formula(object):
         print 'Extracting archive \'%s\'' % file_path
         archive.extract_archive(file_path)
 
+    def __make(self):
+        output = self.__process('makegyp_make_log', self.make())
+        self.parser.parse_make(output)
+
     def __process(self, log_name, args):
         """Process the args and preserve the output.
 
@@ -195,6 +199,8 @@ class Formula(object):
         os.chdir(self.tmp_package_path)
         print 'Configuring...'
         self.__configure()
+        print 'Making...'
+        self.__make()
 
         # Generates the GYP file:
         gyp_filename = "%s.gyp" % self.__class__.__name__.lower()
