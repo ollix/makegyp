@@ -32,7 +32,7 @@ class Target(object):
     target_default_keywords = ('defines', 'dependencies', 'include_dirs')
 
     library_name_pattern = re.compile(r'^lib.*\.\w+$')
-    target_name_pattern = re.compile(r'^(lib)?(.*)(\.\w+)$')
+    target_name_pattern = re.compile(r'^((lib)?.*?)(\.\w+)$')
 
     def __init__(self, target_output_name):
         if re.match(self.library_name_pattern, target_output_name):
@@ -40,7 +40,7 @@ class Target(object):
         else:
             self.type = 'executable'
 
-        self.name = re.sub(self.target_name_pattern, r'\2', target_output_name)
+        self.name = re.sub(self.target_name_pattern, r'\1', target_output_name)
         self.defines = set()
         self.dependencies = set()
         self.include_dirs = set()
@@ -51,7 +51,7 @@ class Target(object):
 
     def add_dependency_by_path(self, path):
         filename = os.path.basename(path)
-        name = re.sub(self.target_name_pattern, r'\2', filename)
+        name = re.sub(self.target_name_pattern, r'\1', filename)
         self.dependencies.add(name)
 
     def dump(self):
