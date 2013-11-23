@@ -29,6 +29,8 @@ def get_os():
 
 
 class Target(object):
+    target_default_keywords = ('defines', 'dependencies', 'include_dirs')
+
     library_name_pattern = re.compile(r'^lib.*\.\w+$')
     target_name_pattern = re.compile(r'^(lib)?(.*)(\.\w+)$')
 
@@ -61,3 +63,21 @@ class Target(object):
         obj['defines'] = sorted(self.defines)
         obj['dependencies'] = sorted(self.dependencies)
         return json.dumps(obj, indent=4)
+
+    def gyp_dict(self):
+        obj = collections.OrderedDict()
+        obj['target_name'] = self.name
+        obj['type'] = 'static_library' if self.type == 'library' else self.type
+        if self.sources:
+            obj['sources'] = sorted(self.sources)
+        if self.include_dirs:
+            obj['include_dirs'] = sorted(self.include_dirs)
+            try:
+                obj['include_dirs'].remove('.')
+            except ValueError:
+                pass
+        if self.defines:
+            obj['defines'] = sorted(self.defines)
+        if self.dependencies:
+            obj['dependencies'] = sorted(self.dependencies)
+        return obj

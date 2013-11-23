@@ -55,26 +55,59 @@ class Formula(object):
         self.config_root = os.path.join(self.tmp_package_path,
                                         kConfigRootDirectoryName)
 
-    def __configure(self):
-        output = self.__process('makegyp_configure_log', self.configure())
+    def __add_targets_to_gyp(self, targets):
+        targets = [target.gyp_dict() for target in targets]
 
-        # Determines the directory to keep config files:
-        config_dir = os.path.join(self.config_root, gyp.get_os(),
-                                  gyp.get_arch())
+        target_defaults = self.gyp['target_defaults']
+        for keyword in gyp.Target.target_default_keywords:
+            # Finds common values for the target default keyword:
+            common_values = None
+            for target in targets:
+                # Retrieves current values from the target:
+                try:
+                    values = target[keyword]
+                except KeyError:
+                    values = set()
+                else:
+                    values = set(values)
 
-        # Copies each generated config file:
-        for config in self.parser.parse_configure(output):
-            src = os.path.join(self.tmp_package_path, config)
-            dest = os.path.join(config_dir, config)
-            # make sure the directory existed
-            try:
-                os.makedirs(os.path.dirname(dest))
-            except OSError as error:
-                if error.errno != 17:
-                    raise error
+                # Updates common values:
+                if common_values is None:
+                    common_values = values
+                else:
+                    common_values = common_values.intersection(values)
 
-            shutil.copyfile(src, dest)
-            print 'Generated config file: %s' % dest
+                # Stops searching if there is not common values:
+                if not common_values:
+                    break
+
+            # If there are common values, merge them to top-level target
+            # defaults and remove them from each target:
+            if common_values:
+                # Merges common values into target defaults:
+                try:
+                    values = target_defaults[keyword]
+                except KeyError:
+                    values = set()
+                else:
+                    values = set(values)
+                target_defaults[keyword] = sorted(values.union(common_values))
+
+                # Removes common values from each target:
+                for target in targets:
+                    try:
+                        values = target[keyword]
+                    except KeyError:
+                        pass
+                    else:
+                        new_values = set(values).difference(common_values)
+                        if new_values:
+                            target[keyword] = sorted(new_values)
+                        else:
+                            target.pop(keyword)
+
+        for target in targets:
+            self.gyp['targets'].append(target)
 
     def __download(self):
         if os.path.isdir(self.tmp_package_path):
@@ -115,9 +148,26 @@ class Formula(object):
         print 'Extracting archive \'%s\'' % file_path
         archive.extract_archive(file_path)
 
-    def __make(self):
-        output = self.__process('makegyp_make_log', self.make())
-        self.parser.parse_make(output)
+    def __generate_config_files(self):
+        output = self.__process('makegyp_configure_log', self.configure())
+
+        # Determines the directory to keep config files:
+        config_dir = os.path.join(self.config_root, gyp.get_os(),
+                                  gyp.get_arch())
+
+        # Copies each generated config file:
+        for config in self.parser.get_config_files(output):
+            src = os.path.join(self.tmp_package_path, config)
+            dest = os.path.join(config_dir, config)
+            # make sure the directory existed
+            try:
+                os.makedirs(os.path.dirname(dest))
+            except OSError as error:
+                if error.errno != 17:
+                    raise error
+
+            shutil.copyfile(src, dest)
+            print 'Generated config file: %s' % dest
 
     def __process(self, log_name, args):
         """Process the args and preserve the output.
@@ -194,20 +244,24 @@ class Formula(object):
         return list()
 
     def install(self):
-        self.__reset_gyp()
         print 'Installing %s...' % self.__class__.__name__
+        self.__reset_gyp()
         self.__download()
         os.chdir(self.tmp_package_path)
         print 'Configuring...'
-        self.__configure()
+        self.__generate_config_files()
         print 'Making...'
-        self.__make()
+        output = self.__process('makegyp_make_log', self.make())
+        print 'Generating GYP file...'
+        targets = self.parser.get_targets(output)
+        self.__add_targets_to_gyp(targets)
 
         # Generates the GYP file:
         gyp_filename = "%s.gyp" % self.__class__.__name__.lower()
         gyp_file = open(os.path.join(self.tmp_package_path, gyp_filename), "w")
         json.dump(self.gyp, gyp_file, indent=4)
         gyp_file.close()
+        print 'Done.'
 
     def make(self):
         return list()

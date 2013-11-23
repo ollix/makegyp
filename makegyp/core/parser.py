@@ -8,6 +8,7 @@ from makegyp.core import gyp
 class Parser(object):
     pass
 
+
 class MakeParser(Parser):
     # Regular expression patterns:
     compile_re = '^\s+CC\s+(\w+)'
@@ -60,27 +61,28 @@ class MakeParser(Parser):
     def _handle_unknown_args(self, args):
         pass
 
-    def parse_configure(self, source):
-        result = list()
+    def get_config_files(self, configure_output):
+        config_files = list()
 
-        for line in source.split('\n'):
+        for line in configure_output.split('\n'):
             if not self.config_file_re.match(line):
                 continue
 
             config_file = re.sub(self.config_file_re, r'\1', line)
             if config_file:
-                result.append(config_file)
+                config_files.append(config_file)
 
-        return result
+        return config_files
 
-    def parse_make(self, source):
+    def get_targets(self, make_output):
+        """Parse the make output and returns a list of targets."""
         self.current_directory = ''
         self.make_mode = None
         self.previous_arg_type = None
         self.targets = list()
         self.compiled_objects = dict()
 
-        for line in source.split('\n'):
+        for line in make_output.split('\n'):
             arg_type = self._get_arg_type(line)
             if arg_type == 'start_make':
                 self._handle_start_make_args(line)
@@ -93,8 +95,6 @@ class MakeParser(Parser):
 
             self.previous_arg_type = arg_type
 
-        print '\n\n'
-        # print json.dumps(self.targets, sort_keys=True, indent=4)
         for target in self.targets:
             print target.dump()
 
@@ -107,8 +107,11 @@ class LibtoolParser(MakeParser):
     compile_re = re.compile(r'^libtool: compile:\s+gcc\s+?(.+?)$')
     link_re = re.compile(r'^.+?libtool\s.*?\s--mode=link\s+?gcc\s+?(.*?)$')
 
-    def __get_arg_type(self, message):
-        if re.match(self.compile_re, message):
+    def _get_arg_type(self, message):
+        arg_type = super(LibtoolParser, self)._get_arg_type(message)
+        if arg_type:
+            return arg_type
+        elif re.match(self.compile_re, message):
             return 'compile'
         elif re.match(self.link_re, message):
             return 'link'
@@ -121,7 +124,7 @@ class LibtoolParser(MakeParser):
                     return compiled_object
 
     def _handle_unknown_args(self, args):
-        arg_type = self.__get_arg_type(args)
+        arg_type = self._get_arg_type(args)
 
         if arg_type == 'compile':
             args = re.sub(self.compile_re, r'\1', args)
@@ -162,4 +165,3 @@ class LibtoolParser(MakeParser):
                     target.defines.update(compiled_object.defines)
 
             self.targets.append(target)
-
