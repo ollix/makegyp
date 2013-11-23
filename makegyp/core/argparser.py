@@ -26,7 +26,7 @@ class GccArgumentParser(ArgumentParser):
 
         self.add_argument('-c', dest='source')
         self.add_argument('-f', action='append')
-        self.add_argument('-D', action='append')
+        self.add_argument('-D', action='append', dest='defines')
         self.add_argument('-l', action='append', dest='libs')
         self.add_argument('-I', action='append', dest='include_dirs')
         self.add_argument('-M')

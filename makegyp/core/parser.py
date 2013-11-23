@@ -2,6 +2,7 @@ import os
 import re
 
 from makegyp.core import argparser
+from makegyp.core import gyp
 
 
 class Parser(object):
@@ -93,8 +94,10 @@ class MakeParser(Parser):
             self.previous_arg_type = arg_type
 
         print '\n\n'
-        import json
-        print json.dumps(self.targets, sort_keys=True, indent=4)
+        # print json.dumps(self.targets, sort_keys=True, indent=4)
+        for target in self.targets:
+            print target.dump()
+
         return self.targets
 
 
@@ -109,6 +112,13 @@ class LibtoolParser(MakeParser):
             return 'compile'
         elif re.match(self.link_re, message):
             return 'link'
+
+    def __get_compiled_object(self, filename):
+        for dirname, compiled_objects in self.compiled_objects.items():
+            for compiled_object in compiled_objects:
+                if compiled_object.MT == filename:
+                    compiled_object.dirname = dirname
+                    return compiled_object
 
     def _handle_unknown_args(self, args):
         arg_type = self.__get_arg_type(args)
@@ -132,40 +142,24 @@ class LibtoolParser(MakeParser):
             self.current_directory = os.path.relpath(
                 os.path.join(self.current_directory, '..'))
 
-            target = {}
-            target['name'] = re.sub(r'^(lib)?(.+?)(\.\w+)$', r'\2', args.output)
-            target['dependencies'] = []
-            target['include_dirs'] = set()
-            target['defines'] = set()
-            target['sources'] = []
+            target_name = re.sub(r'^(lib)?(.+?)(\.\w+)$', r'\2', args.output)
+            target = gyp.Target(args.output)
             for linked_file in args.linked_files:
                 if linked_file.endswith('.la'):
-                    library_name = os.path.basename(linked_file)
-                    library_name = re.sub(r'^(lib)(.+?)(\.\w+)$', r'\2', library_name)
-                    target['dependencies'].append(library_name)
+                    target.add_dependency_by_path(linked_file)
                 elif linked_file.endswith('.lo'):
-                    for directory, objs in self.compiled_objects.items():
-                        for obj in objs:
-                            if obj.MT == linked_file:
-                                source = os.path.join(directory, obj.source)
-                                target['sources'].append(source)
-
-                                for include_dir in obj.include_dirs:
-                                    include_dir = os.path.join(directory,
-                                                  include_dir)
-                                    include_dir = os.path.relpath(include_dir)
-                                    target['include_dirs'].add(include_dir)
-                                break
-                            if hasattr(obj, 'D'):
-                                target['defines'].update(obj.D)
-
-            if '.' in target['include_dirs']:
-                target['include_dirs'].remove('.')
-            target['include_dirs'] = list(target['include_dirs'])
-            target['include_dirs'].sort()
-
-            target['defines'] = list(target['defines'])
-            target['defines'].sort()
+                    compiled_object = self.__get_compiled_object(linked_file)
+                    source = os.path.join(compiled_object.dirname,
+                                          compiled_object.source)
+                    target.sources.add(source)
+                    # Updates include_dirs:
+                    for include_dir in compiled_object.include_dirs:
+                        include_dir = os.path.join(compiled_object.dirname,
+                                                   include_dir)
+                        include_dir = os.path.relpath(include_dir)
+                        target.include_dirs.add(include_dir)
+                    # Updates defines:
+                    target.defines.update(compiled_object.defines)
 
             self.targets.append(target)
 
