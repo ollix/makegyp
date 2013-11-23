@@ -210,13 +210,17 @@ class Formula(object):
         Returns the output of the processed arguments.
         """
         log_file_path = os.path.join(self.tmp_package_path, log_name)
-        identifier = "# %s\n" % ' '.join(args)
+
+        if not hasattr(self, 'identifier'):
+            configure_args = ' '.join(self.configure())
+            self.identifier = hashlib.sha256(configure_args).hexdigest()
+            self.identifier = '# %s\n' % self.identifier
 
         # Checks if the log can be reused:
         needs_to_process = True
         if os.path.isfile(log_file_path):
             log_file = open(log_file_path, 'r')
-            if log_file.readline() == identifier:
+            if log_file.readline() == self.identifier:
                 # It's ok to reuse the log
                 needs_to_process = False
                 output = log_file.read()
@@ -231,7 +235,8 @@ class Formula(object):
 
             # Preserves the output for debug and reuse:
             log_file = open(log_file_path, 'w')
-            log_file.write(identifier)
+            log_file.write(self.identifier)
+            log_file.write('# %s\n' % ' '.join(args))
             log_file.write(output)
             log_file.close()
 
