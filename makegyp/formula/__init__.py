@@ -193,7 +193,7 @@ class Formula(object):
         # Copies each generated config file:
         for config in self.parser.get_config_files(output):
             src = os.path.join(self.tmp_package_path, config)
-            dest = os.path.join(config_dir, config)
+            dest = os.path.join(config_dir, os.path.basename(config))
             # make sure the directory existed
             try:
                 os.makedirs(os.path.dirname(dest))
