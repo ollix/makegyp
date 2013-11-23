@@ -19,6 +19,7 @@ kConfigRootDirectoryName = "gyp_config"
 
 
 class Formula(object):
+    name = None
     parser = None
     url = None
     sha256 = None
@@ -56,6 +57,10 @@ class Formula(object):
         self.config_root = os.path.join(self.tmp_package_path,
                                         kConfigRootDirectoryName)
 
+        # Guesses the library name:
+        if not self.name:
+            self.name = self.__class__.__name__.lower()
+
     def __add_direct_dependent_settings_to_target(self, target):
         # Retrieves default include dirs as a set:
         try:
@@ -76,13 +81,13 @@ class Formula(object):
         target['direct_dependent_settings'] = {'include_dirs': include_dirs}
 
     def __add_targets_to_gyp(self, targets):
-        targets = [target.gyp_dict() for target in targets]
+        target_gyp_dicts = [target.gyp_dict() for target in targets]
 
         target_defaults = self.gyp['target_defaults']
         for keyword in gyp.Target.target_default_keywords:
             # Finds common values for the target default keyword:
             common_values = None
-            for target in targets:
+            for target in target_gyp_dicts:
                 # Retrieves current values from the target:
                 try:
                     values = target[keyword]
@@ -114,7 +119,7 @@ class Formula(object):
                 target_defaults[keyword] = sorted(values.union(common_values))
 
                 # Removes common values from each target:
-                for target in targets:
+                for target in target_gyp_dicts:
                     try:
                         values = target[keyword]
                     except KeyError:
@@ -126,7 +131,7 @@ class Formula(object):
                         else:
                             target.pop(keyword)
 
-        for target in targets:
+        for target in target_gyp_dicts:
             # Adds direct_dependent_settings to target:
             self.__add_direct_dependent_settings_to_target(target)
 
@@ -274,7 +279,7 @@ class Formula(object):
         return list()
 
     def install(self):
-        print 'Installing %s...' % self.__class__.__name__
+        print 'Installing %s...' % self.name
         self.__reset_gyp()
         self.__download()
         os.chdir(self.tmp_package_path)
@@ -282,12 +287,12 @@ class Formula(object):
         self.__generate_config_files()
         print 'Making...'
         output = self.__process('makegyp_make_log', self.make())
-        print 'Generating GYP file...'
+        print 'Generating gyp file...'
         targets = self.parser.get_targets(output)
         self.__add_targets_to_gyp(targets)
 
         # Generates the GYP file:
-        gyp_filename = "%s.gyp" % self.__class__.__name__.lower()
+        gyp_filename = "%s.gyp" % self.name
         gyp_file_path = os.path.join(self.tmp_package_path, gyp_filename)
         gyp_file = open(gyp_file_path, "w")
         json.dump(self.gyp, gyp_file, indent=4)
@@ -295,11 +300,11 @@ class Formula(object):
 
         # Copies library source code along generated files to destination:
         archive_path = os.path.join(self.tmp_dir, os.path.basename(self.url))
-        dest_root = os.path.join(self.deps_dir, self.package_name)
-        print 'Copying library source code to %r' % self.deps_dir
+        install_path = os.path.join(self.deps_dir, self.package_name)
+        print 'Copying library source code to %r' % install_path
         archive.extract_archive(archive_path, self.deps_dir)
         # Copies config files:
-        config_dest = os.path.join(dest_root, kConfigRootDirectoryName)
+        config_dest = os.path.join(install_path, kConfigRootDirectoryName)
         print 'Copying config files to %r' % config_dest
         try:
             shutil.copytree(self.config_root, config_dest)
@@ -307,11 +312,15 @@ class Formula(object):
             if error.errno == 17:
                 pass
         # Copies gyp file:
-        gyp_dest = os.path.join(dest_root, gyp_filename)
+        gyp_dest = os.path.join(install_path, gyp_filename)
         print 'Copying gyp file to %r' % gyp_dest
         shutil.copyfile(gyp_file_path, gyp_dest)
 
-        print 'Done.'
+        print 'Installed %r to %r' % (self.name, install_path)
+        target_prefix = os.path.join('gyp_deps', self.package_name,
+                                     gyp_filename)
+        for target in targets:
+            print '- %s::%s:%s' % (target.type, target_prefix, target.name)
 
     def make(self):
         return list()
