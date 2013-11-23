@@ -56,6 +56,25 @@ class Formula(object):
         self.config_root = os.path.join(self.tmp_package_path,
                                         kConfigRootDirectoryName)
 
+    def __add_direct_dependent_settings_to_target(self, target):
+        # Retrieves default include dirs as a set:
+        try:
+            default_include_dirs = self.gyp['target_defaults']['include_dirs']
+        except KeyError:
+            default_include_dirs = set()
+        else:
+            default_include_dirs = set(default_include_dirs)
+        # Retrieves target include dirs as as set:
+        try:
+            target_include_dirs = target['include_dirs']
+        except KeyError:
+            target_include_dirs = set()
+        else:
+            target_include_dirs = set(target_include_dirs)
+        # Merges two sets of include dirs and adds to direct_dependent_settings:
+        include_dirs = sorted(default_include_dirs.union(target_include_dirs))
+        target['direct_dependent_settings'] = {'include_dirs': include_dirs}
+
     def __add_targets_to_gyp(self, targets):
         targets = [target.gyp_dict() for target in targets]
 
@@ -108,6 +127,9 @@ class Formula(object):
                             target.pop(keyword)
 
         for target in targets:
+            # Adds direct_dependent_settings to target:
+            self.__add_direct_dependent_settings_to_target(target)
+
             self.gyp['targets'].append(target)
 
     def __download(self):
