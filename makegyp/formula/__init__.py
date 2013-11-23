@@ -1,3 +1,4 @@
+import collections
 import ftplib
 import json
 import os
@@ -22,7 +23,7 @@ class Formula(object):
     sha1 = None
 
     def __init__(self):
-        self.gyp = dict()
+        self.gyp = collections.OrderedDict()
 
         # Creates the deps directory for keeping installed libraries:
         self.deps_dir = os.path.join(os.path.curdir, 'gyp_deps')
@@ -155,7 +156,10 @@ class Formula(object):
         self.gyp.clear()
 
         # Initializes target_defaults:
-        self.gyp['target_defaults'] = dict()
+        self.gyp['variables'] = {
+            'target_arch%': gyp.get_arch(),
+        }
+        self.gyp['target_defaults'] = collections.OrderedDict()
         self.gyp['target_defaults']['default_configuration'] = 'Debug'
         self.gyp['target_defaults']['configurations'] = {
             'Debug': {
@@ -177,9 +181,6 @@ class Formula(object):
         }
         self.gyp['target_defaults']['msvs_settings'] = {
             'VCLinkerTool': {'GenerateDebugInformation': 'true'},
-        }
-        self.gyp['variables'] = {
-            'target_arch%': gyp.get_arch(),
         }
         self.gyp['target_defaults']['include_dirs'] = [
             # platform and arch-specific headers
@@ -205,7 +206,7 @@ class Formula(object):
         # Generates the GYP file:
         gyp_filename = "%s.gyp" % self.__class__.__name__.lower()
         gyp_file = open(os.path.join(self.tmp_package_path, gyp_filename), "w")
-        json.dump(self.gyp, gyp_file, sort_keys=True, indent=4)
+        json.dump(self.gyp, gyp_file, indent=4)
         gyp_file.close()
 
     def make(self):
