@@ -288,9 +288,29 @@ class Formula(object):
 
         # Generates the GYP file:
         gyp_filename = "%s.gyp" % self.__class__.__name__.lower()
-        gyp_file = open(os.path.join(self.tmp_package_path, gyp_filename), "w")
+        gyp_file_path = os.path.join(self.tmp_package_path, gyp_filename)
+        gyp_file = open(gyp_file_path, "w")
         json.dump(self.gyp, gyp_file, indent=4)
         gyp_file.close()
+
+        # Copies library source code along generated files to destination:
+        archive_path = os.path.join(self.tmp_dir, os.path.basename(self.url))
+        dest_root = os.path.join(self.deps_dir, self.package_name)
+        print 'Copying library source code to %r' % self.deps_dir
+        archive.extract_archive(archive_path, self.deps_dir)
+        # Copies config files:
+        config_dest = os.path.join(dest_root, kConfigRootDirectoryName)
+        print 'Copying config files to %r' % config_dest
+        try:
+            shutil.copytree(self.config_root, config_dest)
+        except OSError as error:
+            if error.errno == 17:
+                pass
+        # Copies gyp file:
+        gyp_dest = os.path.join(dest_root, gyp_filename)
+        print 'Copying gyp file to %r' % gyp_dest
+        shutil.copyfile(gyp_file_path, gyp_dest)
+
         print 'Done.'
 
     def make(self):
