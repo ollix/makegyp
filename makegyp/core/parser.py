@@ -1,13 +1,11 @@
+import os
 import re
 
 from makegyp.core import argparser
 
 
 class Parser(object):
-
-    def __init__(self):
-        self.parse_result = list()
-
+    pass
 
 class MakeParser(Parser):
     # Regular expression patterns:
@@ -38,19 +36,31 @@ class MakeParser(Parser):
     def _handle_end_make_args(self, args):
         print 'END_MAKE'
 
+        self.current_directory = os.path.relpath(
+            os.path.join(self.current_directory, '..'))
+
     def _handle_make_mode_args(self, args):
         self.make_mode = re.sub(self.make_mode_re, r'\1', args)
         print 'MAKE MODE:', self.make_mode
 
     def _handle_start_make_args(self, args):
         directory_name = re.sub(self.start_make_re, r'\1', args)
-        print 'START MAKE:', directory_name
+
+
+        path = os.path.join(self.current_directory, directory_name)
+        if not os.path.isdir(path):
+            path = os.path.join(self.current_directory, '..', directory_name)
+        path = os.path.relpath(path)
+
+        print 'START MAKE:', path
+
+        self.current_directory = path
 
     def _handle_unknown_args(self, args):
         pass
 
     def parse_configure(self, source):
-        self.parse_result = list()
+        result = list()
 
         for line in source.split('\n'):
             if not self.config_file_re.match(line):
@@ -58,14 +68,16 @@ class MakeParser(Parser):
 
             config_file = re.sub(self.config_file_re, r'\1', line)
             if config_file:
-                self.parse_result.append(config_file)
+                result.append(config_file)
 
-        return self.parse_result
+        return result
 
     def parse_make(self, source):
-        self.parse_result = list()
+        self.current_directory = ''
         self.make_mode = None
         self.previous_arg_type = None
+        self.targets = list()
+        self.compiled_objects = dict()
 
         for line in source.split('\n'):
             arg_type = self._get_arg_type(line)
@@ -80,7 +92,10 @@ class MakeParser(Parser):
 
             self.previous_arg_type = arg_type
 
-        return self.parse_result
+        print '\n\n'
+        import json
+        print json.dumps(self.targets, sort_keys=True, indent=4)
+        return self.targets
 
 
 class LibtoolParser(MakeParser):
@@ -103,8 +118,54 @@ class LibtoolParser(MakeParser):
             args = self.gcc_parser.parse_args(args)
             print 'COMPILE: %s > %s' % (args.source,  args.output)
             print args
+
+            if self.current_directory not in self.compiled_objects:
+                self.compiled_objects[self.current_directory] = []
+            self.compiled_objects[self.current_directory].append(args)
+
         elif arg_type == 'link':
             args = re.sub(self.link_re, r'\1', args)
             args = self.gcc_parser.parse_args(args)
             print 'LINK: %s > %r' % (args.output, args.linked_files)
             print args
+
+            self.current_directory = os.path.relpath(
+                os.path.join(self.current_directory, '..'))
+
+            target = {}
+            target['name'] = re.sub(r'^(lib)?(.+?)(\.\w+)$', r'\2', args.output)
+            target['dependencies'] = []
+            target['include_dirs'] = set()
+            target['defines'] = set()
+            target['sources'] = []
+            for linked_file in args.linked_files:
+                if linked_file.endswith('.la'):
+                    library_name = os.path.basename(linked_file)
+                    library_name = re.sub(r'^(lib)(.+?)(\.\w+)$', r'\2', library_name)
+                    target['dependencies'].append(library_name)
+                elif linked_file.endswith('.lo'):
+                    for directory, objs in self.compiled_objects.items():
+                        for obj in objs:
+                            if obj.MT == linked_file:
+                                source = os.path.join(directory, obj.source)
+                                target['sources'].append(source)
+
+                                for include_dir in obj.include_dirs:
+                                    include_dir = os.path.join(directory,
+                                                  include_dir)
+                                    include_dir = os.path.relpath(include_dir)
+                                    target['include_dirs'].add(include_dir)
+                                break
+                            if hasattr(obj, 'D'):
+                                target['defines'].update(obj.D)
+
+            if '.' in target['include_dirs']:
+                target['include_dirs'].remove('.')
+            target['include_dirs'] = list(target['include_dirs'])
+            target['include_dirs'].sort()
+
+            target['defines'] = list(target['defines'])
+            target['defines'].sort()
+
+            self.targets.append(target)
+
