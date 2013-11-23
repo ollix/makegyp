@@ -1,5 +1,6 @@
 import collections
 import ftplib
+import hashlib
 import json
 import os
 import shutil
@@ -20,7 +21,7 @@ kConfigRootDirectoryName = "gyp_config"
 class Formula(object):
     parser = None
     url = None
-    sha1 = None
+    sha256 = None
 
     def __init__(self):
         self.gyp = collections.OrderedDict()
@@ -143,6 +144,13 @@ class Formula(object):
             local_package.close()
             if failed:
                 exit(1)
+
+        # Checks checksum:
+        local_package = open(file_path, 'rb')
+        if hashlib.sha256(local_package.read()).hexdigest() != self.sha256:
+            print 'SHA256 checksum not matched: %s %s' % \
+                (self.sha256, file_path)
+            exit(1)
 
         # Extracts the archive:
         print 'Extracting archive \'%s\'' % file_path
