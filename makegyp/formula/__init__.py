@@ -231,7 +231,7 @@ class Formula(object):
                 output = subprocess.check_output(args)
             except subprocess.CalledProcessError as e:
                 print 'Failed to process the formula: %s' % e.output
-                esxit(1)
+                exit(1)
 
             # Preserves the output for debug and reuse:
             log_file = open(log_file_path, 'w')
