@@ -151,7 +151,7 @@ class Formula(object):
             local_package = open(file_path, 'wb')
             failed = False
 
-            if url_info.scheme == 'http':
+            if url_info.scheme in ('http', 'https'):
                 package = urllib2.urlopen(self.url)
                 if package.getcode() == 200:
                     local_package.write(package.read())
