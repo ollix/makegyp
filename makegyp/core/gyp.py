@@ -72,10 +72,6 @@ class Target(object):
             obj['sources'] = sorted(self.sources)
         if self.include_dirs:
             obj['include_dirs'] = sorted(self.include_dirs)
-            try:
-                obj['include_dirs'].remove('.')
-            except ValueError:
-                pass
         if self.defines:
             obj['defines'] = sorted(self.defines)
         if self.dependencies:
