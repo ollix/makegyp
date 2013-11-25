@@ -19,7 +19,7 @@ class ArgumentParser(argparse.ArgumentParser):
         if isinstance(args[0], str):
             args[0] = args[0].strip().split()
 
-        # Reorders the arguments by moves all pure arguments to the back:
+        # Reorders the arguments by moving all pure arguments to the back:
         reversed_args = list()
         for arg_names in self.__args:
             arg_options = self.__args[arg_names]
