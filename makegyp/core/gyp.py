@@ -42,7 +42,7 @@ class Target(object):
 
         self.name = re.sub(self.target_name_pattern, r'\1', target_output_name)
         self.defines = set()
-        self.dependencies = set()
+        self.dependencies = set()  # should be a list of Target objects
         self.include_dirs = set()
         self.sources = set()
 
@@ -75,5 +75,6 @@ class Target(object):
         if self.defines:
             obj['defines'] = sorted(self.defines)
         if self.dependencies:
-            obj['dependencies'] = sorted(self.dependencies)
+            obj['dependencies'] = \
+                sorted([target.name for target in self.dependencies])
         return obj
