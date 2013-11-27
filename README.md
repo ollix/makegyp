@@ -1,7 +1,7 @@
 makegyp
 =======
 
-makegyp tries to add existing C or C++ library as modules with GYP support.
+*makegyp* tries to add existing C or C++ library as modules with GYP support.
 This project is still at early stage and could be constantly changed.
 
 The idea behind makegyp is inspired by [Homebrew](http://brew.sh) and
@@ -25,11 +25,11 @@ created this project trying to automate that work.
 How does it work?
 -----------------
 Each C or C++ library will be supported by implementing an inherited Formula
-class. When installing, makegyp will try to download and build the library by
-a predefined formula, analyze the output of the building process, and finally
-generate necessary config and GYP files for that library. The installed module
-is just a normal source code library with GYP support so you can easily use
-them as dependencies in your GYP projects.
+class. When installing, *makegyp* will try to download and build the library by
+a predefined formula, then inspect the building process and finally
+generate necessary config files and  a GYP script for that library.
+The installed module is just a normal source code library with GYP support so
+you can easily use them as dependencies of your GYP projects.
 
 Try it!
 -------
@@ -78,7 +78,7 @@ library by simply run:
     - library::gyp_deps/lame-3.99.5/lame.gyp:libmp3lame
 
 That's it. Now the *LAME* library should be installed as a module in the auto
-generated *gyp_deps* directory. You can now add
+generated *gyp_deps* directory. You can add
 *gyp_deps/lame-3.99.5/lame.gyp:libmp3lame* to the target's *dependencies*
 field in your GYP file and write a simple program to test it.
 
@@ -114,7 +114,7 @@ Your GYP file should look something like this:
         ],
     }
 
-As usual, now you can build your test program:
+At this point, you can build your test program:
 
     $gyp --depth=. -f ninja test.gyp
     $ninja -C out/Debug/
@@ -133,7 +133,9 @@ convert most libraries to adapt GYP support. You can help! :)
 
 Current working formulas
 -------------------------
+- faad2
 - gtest
 - lame
+- libffi
 - zlib
 
