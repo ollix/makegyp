@@ -27,6 +27,8 @@ class Parser(object):
 class MakeParser(Parser):
     # Regular expression patterns:
     compile_re = '^\s+CC\s+(\w+)'
+    # For removing bash conditional expression.
+    trim_re = re.compile(r'^(if\s+)?(.*?)(\s*(;|>).*)?$')
     # For extracting generated config files
     config_file_re = re.compile(r'config.status:\screating\s(.*config\.h)')
     # End make: looks like "make[3]: Nothing to be done for `all-am'"
@@ -34,8 +36,15 @@ class MakeParser(Parser):
     link_re = re.compile(r'^\s+CCLD\s+(\w+)')
     # Make mode: for example, all-am, all-recursive
     make_mode_re = re.compile(r'^.+?/make\s+([a-z\-]+)$')
+    # Object key:
+    object_key_re = re.compile(r'^/?(.+?/)*(.+?)\.(o|lo)\s*$')
     # Start make: looks like "Making all in something"
     start_make_re = re.compile(r'^Making all in ([\.\/\w]+)')
+
+    object_filename_exts = ('o', 'lo')
+
+    def _get_object_key(self, object_path):
+        return re.sub(self.object_key_re, r'\2', object_path)
 
     def __replace_expressions(self, args):
         # Remembers the current directory for later resotred:
@@ -107,11 +116,11 @@ class MakeParser(Parser):
         """Parse the make output and returns a list of targets."""
         self.current_directory = '.'
         self.make_mode = None
-        self.previous_arg_type = None
         self.targets = list()
         self.compiled_objects = dict()
 
         for line in make_output.split('\n'):
+            line = line.strip()
             arg_type = self._get_arg_type(line)
             if arg_type == 'start_make':
                 self._handle_start_make_args(line)
@@ -120,15 +129,20 @@ class MakeParser(Parser):
             elif arg_type == 'make_mode':
                 self._handle_make_mode_args(line)
             else:
+                # Removes evaluation expression
                 line = self.__replace_expressions(line)
-                self._handle_unknown_args(line)
+                # Removes conditional expressions:
+                if re.match(self.trim_re, line):
+                    line = re.sub(self.trim_re, r'\2', line)
 
-            self.previous_arg_type = arg_type
+                self._handle_unknown_args(line)
 
         return self.targets
 
 
 class CmakeParser(Parser):
+    archiver_argument_parser = argparser.ArchiverArgumentParser()
+
     target_directories_path = os.path.join('CMakeFiles',
                                            'TargetDirectories.txt')
 
@@ -154,16 +168,16 @@ class CmakeParser(Parser):
                 return target
 
         # Determines the target name and create the Target object:
-        target_link_info = self.__get_target_link_info(target_directory)
-        if not target_link_info:
+        target_link_info = self.__get_link_info(target_directory)
+        if target_link_info is None:
             return None
 
-        target = gyp.Target(target_link_info['product_name'])
+        target = gyp.Target(target_link_info.output)
         self.targets.append(target)
         # Sets target path for searching in self.targets:
         target.target_directory = target_directory
         # Sets sources:
-        target.sources.update(target_link_info['sources'])
+        target.sources.update(target_link_info.sources)
         # Sets defines:
         defines = self.__get_target_defines(target_directory)
         target.defines = target.defines.union(defines)
@@ -212,7 +226,7 @@ class CmakeParser(Parser):
                     target_path = self.__get_root_target_path(value)
                     dependency = self.__get_target(target_path)
                     if dependency is not None:
-                        target.dependencies.add(dependency.name)
+                        target.dependencies.add(dependency)
                     # Adds dependencies recursively:
                     self.__merge_target_depend_info(target, value)
                 # Include directories:
@@ -221,24 +235,35 @@ class CmakeParser(Parser):
 
         depend_info_file.close()
 
-    def __get_target_link_info(self, target_path):
+    def get_config_files(self, configure_output):
+        return list()
+
+    def __get_link_info(self, target_path):
         path = self.__get_root_target_path(target_path)
         if path is None:
             return None
+        else:
+            path = os.path.join(path, 'link.txt')
 
-        link_file = file(os.path.join(path, 'link.txt'))
-        arguments = link_file.readline().split()
+        parsed_args = None
+        link_file = file(path)
+        for line in link_file:
+            line = line.strip()
+            if self.archiver_argument_parser.match_pattern(line):
+                parsed_args = self.archiver_argument_parser.parse_args(line)
+                break
+        else:
+            print 'Failed to find Archiver arguments at %r' % path
+            exit(1)
         link_file.close()
 
-        sources = list()
-        for source in arguments[3:]:
-            source = re.sub(self.source_re, r'\1', source)
-            sources.append(source)
+        # Converts built source paths to original source paths.
+        revised_sources = list()
+        for source in parsed_args.sources:
+            revised_sources.append(re.sub(self.source_re, r'\1', source))
+        parsed_args.sources = revised_sources
 
-        return dict(product_name=arguments[2], sources=sources)
-
-    def get_config_files(self, configure_output):
-        return list()
+        return parsed_args
 
     def get_targets(self, make_output):
         targets = list()
@@ -253,19 +278,31 @@ class CmakeParser(Parser):
             if not target_directory:
                 continue
             target = self.__get_target(target_directory)
+            if target is None:
+                print 'Failed to get target info at %r' % target_directory
+                exit(1)
             targets.append(target)
 
         return targets
 
 
 class GccParser(MakeParser):
+    archiver_argument_parser = argparser.ArchiverArgumentParser()
     gcc_argument_parser = argparser.GccArgumentParser()
 
     # Regular expression patterns:
-    compile_re = re.compile(r'(.*?--mode=compile\s)?gcc\s(.*?)')
-    link_re = re.compile(r'^.*?libtool\s(.*?\s--mode=link\sgcc)?(.*)')
+    library_re = re.compile(r'^/?(.+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
 
     def _add_compiled_object(self, parsed_args):
+        """Add parsed arguments to the compiled object list.
+
+        The parsed arguments should be a Namespace object returned by
+        argparser.ArgumentParser's parse_args() method.
+
+        The Namespace object should contain at least both "output" and "sources"
+        attributes where output is a string represented the compiled object and
+        sources is a list of source paths that generate the output object.
+        """
         # Determines the current directory by checking if the source exists:
         source = parsed_args.sources[0]
         current_directory = self.current_directory
@@ -278,7 +315,8 @@ class GccParser(MakeParser):
                 current_directory = os.path.join(current_directory, '..')
                 current_directory = os.path.relpath(current_directory)
                 if current_directory == '..':
-                    print "Couldn't find object: %r" % source_path
+                    print "Cannot find compiled object: %r at %r" % \
+                        (source_path, current_directory)
                     exit(1)
 
         dirname = os.path.join(current_directory, parsed_args.output)
@@ -290,25 +328,48 @@ class GccParser(MakeParser):
             compiled_objects = dict()
             self.compiled_objects[dirname] = compiled_objects
 
-        object_basename = os.path.basename(parsed_args.output)
-        compiled_objects[object_basename] = parsed_args
+        object_key = self._get_object_key(parsed_args.output)
+        # Updates exisiting attributes if the compiled object already exists:
+        if object_key in compiled_objects:
+            compiled_object = compiled_objects[object_key]
+
+            for attr_name in dir(parsed_args):
+                attr = getattr(parsed_args, attr_name)
+                if isinstance(attr, list):
+                    if not hasattr(compiled_object, attr_name):
+                        setattr(compiled_object, attr_name, attr)
+
+                    compiled_attr = getattr(compiled_object, attr_name)
+                    if isinstance(compiled_attr, list):
+                        new_list = list(set(compiled_attr + attr))
+                        setattr(compiled_object, attr_name, new_list)
+        # Adds the compiled object if it's not exists in the list:
+        else:
+            compiled_objects[object_key] = parsed_args
 
     def _add_target(self, parsed_args):
         target_object_name = os.path.basename(parsed_args.output)
         target = gyp.Target(target_object_name)
-        target.object_name = target_object_name
+        for cached_target in self.targets:
+            if target.name == cached_target.name:
+                target = cached_target
+                break
+        else:
+            self.targets.append(target)
 
         for source_path in parsed_args.sources:
             # If the source path represents a dependency, find the corresponded
             # target instance and get the target name:
-            source_is_dependency = False
-            basename = os.path.basename(source_path)
-            for cached_target in self.targets:
-                if cached_target.object_name == basename:
-                    source_is_dependency = True
-                    target.dependencies.add(cached_target)
-                    break
-            if source_is_dependency:
+            if re.match(self.library_re, source_path):
+                library_name = re.sub(self.library_re, r'lib\3', source_path)
+                for cached_target in self.targets:
+                    if cached_target.name == library_name:
+                        target.dependencies.add(cached_target)
+                        break
+                else:
+                    print 'Error: Cannot find dependent library %r' % \
+                        library_name
+                    exit(1)
                 continue
 
             # Retrieves the parsed arguments of the source by checking
@@ -316,9 +377,22 @@ class GccParser(MakeParser):
             dirname = os.path.join(self.current_directory,
                                    os.path.dirname(source_path))
             dirname = os.path.relpath(dirname)
-            compiled_objects = self.compiled_objects[dirname]
-            source_name = os.path.basename(source_path)
-            source_args = compiled_objects[source_name]
+            # The current source object is included in a libary and is not
+            # a real object.
+            if re.match(self.library_re, dirname):
+                continue
+
+            # Now we can make sure the source path is a valid source object:
+            try:
+                compiled_objects = self.compiled_objects[dirname]
+            except KeyError:
+                print 'Error: Failed to add %r to target %r' % \
+                    (source_path, target_object_name)
+                print 'self.compiled_objects: %r is not in %r' %  \
+                    (dirname, self.compiled_objects.keys())
+                exit(1)
+            object_key = self._get_object_key(source_path)
+            source_args = compiled_objects[object_key]
             # Adds source path:
             source_path = os.path.join(dirname, source_args.sources[0])
             source_path = os.path.relpath(source_path)
@@ -329,47 +403,28 @@ class GccParser(MakeParser):
                     include_dir = os.path.join(dirname, include_dir)
                     include_dir = os.path.relpath(include_dir)
                     target.include_dirs.add(include_dir)
+            if source_args.iquote is not None:
+                for include_dir in source_args.iquote:
+                    include_dir = os.path.join(dirname, include_dir)
+                    include_dir = os.path.relpath(include_dir)
+                    target.include_dirs.add(include_dir)
             # Adds defines:
             if source_args.defines is not None:
                 target.defines = target.defines.union(source_args.defines)
 
-        self.targets.append(target)
-
     def _handle_unknown_args(self, args):
         # Determines the argument type and generates parsed arguments:
-        if re.match(self.compile_re, args):
-            gcc_args = re.sub(self.compile_re, r'\2', args)
-            parsed_args = self.gcc_argument_parser.parse_args(gcc_args)
-            if parsed_args.library_dirs:
-                arg_type = 'link'
-            else:
-                arg_type = 'compile'
-        elif re.match(self.link_re, args):
-            gcc_args = re.sub(self.link_re, r'\2', args)
-            parsed_args = self.gcc_argument_parser.parse_args(gcc_args)
-            arg_type = 'link'
+        if self.gcc_argument_parser.match_pattern(args):
+            argument_parser = self.gcc_argument_parser
+        elif self.archiver_argument_parser.match_pattern(args):
+            argument_parser = self.archiver_argument_parser
         else:
             return  # unknown type
 
-        if arg_type == 'compile':
+        parsed_args = argument_parser.parse_args(args)
+        build_type = parsed_args.build_type
+
+        if build_type == 'compile':
             self._add_compiled_object(parsed_args)
-        elif arg_type == 'link':
-            self._add_target(parsed_args)
-
-
-class LibtoolParser(GccParser):
-    compile_re = re.compile(r'^libtool: compile:\s+gcc\s+?(.+?)$')
-    link_re = re.compile(r'^.+?libtool\s.*?\s--mode=link\s+?gcc\s+?(.*?)$')
-
-    def _handle_unknown_args(self, args):
-        # Compile:
-        if re.match(self.compile_re, args):
-            gcc_args = re.sub(self.compile_re, r'\1', args)
-            parsed_args = self.gcc_argument_parser.parse_args(gcc_args)
-            parsed_args.output = parsed_args.MT
-            self._add_compiled_object(parsed_args)
-        # Link:
-        elif re.match(self.link_re, args):
-            gcc_args = re.sub(self.link_re, r'\1', args)
-            parsed_args = self.gcc_argument_parser.parse_args(gcc_args)
+        elif build_type == 'link':
             self._add_target(parsed_args)

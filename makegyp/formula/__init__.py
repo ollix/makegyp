@@ -216,11 +216,17 @@ class Formula(object):
             self.identifier = hashlib.sha256(configure_args).hexdigest()
             self.identifier = '# %s\n' % self.identifier
 
+        args_string = args
+        if isinstance(args, list):
+            args_string = ' '.join(args)
+        args_str = '# %s\n' % args_string
+
         # Checks if the log can be reused:
         needs_to_process = True
         if os.path.isfile(log_file_path):
             log_file = open(log_file_path, 'r')
-            if log_file.readline() == self.identifier:
+            if log_file.readline() == self.identifier and \
+               log_file.readline() == args_str:
                 # It's ok to reuse the log
                 needs_to_process = False
                 output = log_file.read()
@@ -228,7 +234,7 @@ class Formula(object):
 
         if needs_to_process:
             try:
-                output = subprocess.check_output(args)
+                output = subprocess.check_output(args, shell=True)
             except subprocess.CalledProcessError as e:
                 print 'Failed to process the formula: %s' % e.output
                 exit(1)
@@ -236,7 +242,7 @@ class Formula(object):
             # Preserves the output for debug and reuse:
             log_file = open(log_file_path, 'w')
             log_file.write(self.identifier)
-            log_file.write('# %s\n' % ' '.join(args))
+            log_file.write(args_str)
             log_file.write(output)
             log_file.close()
 
@@ -291,6 +297,12 @@ class Formula(object):
         print 'Configuring...'
         self.__generate_config_files()
         print 'Making...'
+        # Tries to clean built files before actually do make:
+        try:
+            subprocess.check_output('make clean', stderr=subprocess.STDOUT,
+                                    shell=True)
+        except subprocess.CalledProcessError:
+            pass
         output = self.__process('makegyp_make_log', self.make())
         print 'Generating gyp file...'
         targets = self.parser.get_targets(output)

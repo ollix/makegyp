@@ -8,8 +8,10 @@ class Curl(formula.Formula):
     sha256 = '7450a9c72bd27dd89dc6996aeadaf354fa49bc3c05998d8507e4ab29d4a95172'
 
     def configure(self):
-        return ['./configure', '--enable-static', '--enable-shared=no',
-                '--with-pic']
+        return './configure --disable-debug --disable-curdebug ' \
+               '--disable-manual --enable-static --disable-shared --with-pic ' \
+               '--without-ssl --without-zlib --disable-ipv6 --disable-ldap ' \
+               '--disable-ldaps -- disable-rtsp'
 
     def make(self):
-        return ['make']
+        return 'make'

@@ -30,9 +30,7 @@ def get_os():
 
 class Target(object):
     target_default_keywords = ('defines', 'dependencies', 'include_dirs')
-
-    library_name_pattern = re.compile(r'^lib.*\.\w+$')
-    target_name_pattern = re.compile(r'^((lib)?.*?)(\.\w+)$')
+    library_name_pattern = re.compile(r'^/?(.+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
 
     def __init__(self, target_output_name):
         if re.match(self.library_name_pattern, target_output_name):
@@ -40,7 +38,10 @@ class Target(object):
         else:
             self.type = 'executable'
 
-        self.name = re.sub(self.target_name_pattern, r'\1', target_output_name)
+        self.name = re.sub(self.library_name_pattern, r'\3', target_output_name)
+        # Makes sure the name of a library target always starts with "lib".
+        if self.type == 'library':
+            self.name = 'lib%s' % self.name
         self.defines = set()
         self.dependencies = set()  # should be a list of Target objects
         self.include_dirs = set()
