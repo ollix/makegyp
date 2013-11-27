@@ -125,7 +125,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
 class ArchiverArgumentParser(ArgumentParser):
     patterns = [(r'^libtool: link:\s+ar\s+(.*)$', r'\1', 'link'),
-                (r'^(.+?/)*ar\s+(.*)$', r'\2', 'link')]  # CMake's link.txt
+                (r'^/?(\w+?/)*ar\s+(.*)$', r'\2', 'link')]  # CMake's link.txt
 
     def __init__(self, *args, **kwargs):
         super(ArchiverArgumentParser, self).__init__(*args, **kwargs)
@@ -140,6 +140,8 @@ class GccArgumentParser(ArgumentParser):
                 (r'^libtool:\s+compile:\s+gcc\s+(.*)$', r'\1', 'compile'),
                 (r'^libtool:\s+link:\s+gcc\s+(.*)$', r'\1', 'link'),
                 (r'^libtool\s+(.+)$', r'\1', 'link')]
+
+    library_re = re.compile(r'^(\.{0,2}/)?(\w+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
 
     def __init__(self, *args, **kwargs):
         super(GccArgumentParser, self).__init__(*args, **kwargs)
@@ -175,7 +177,8 @@ class GccArgumentParser(ArgumentParser):
             parsed_args.sources = parsed_args.c
 
         if parsed_args is not None:
-            if parsed_args.dynamiclib or parsed_args.linkers:
+            if parsed_args.dynamiclib or parsed_args.linkers or \
+               len(parsed_args.sources) > 1:
                 parsed_args.build_type = 'link'
 
         return parsed_args

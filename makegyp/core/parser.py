@@ -28,9 +28,11 @@ class MakeParser(Parser):
     # Regular expression patterns:
     compile_re = '^\s+CC\s+(\w+)'
     # For removing bash conditional expression.
-    trim_re = re.compile(r'^(if\s+)?(.*?)(\s*(;|>).*)?$')
+    trim_re = re.compile(r'^(if\s+)?(.*?)(\s*(;|>|&&).*)?$')
     # For extracting generated config files
-    config_file_re = re.compile(r'config.status:\screating\s(.*config\.h)')
+    config_creating_re = re.compile(r'^config.status:\screating\s+(.*\.h)\s*$')
+    config_linking_re = re.compile(
+        r'^config.status:\slinking\s+(.*?)\s+to\s+(.*?)\s*$')
     # End make: looks like "make[3]: Nothing to be done for `all-am'"
     end_make_re = re.compile(r'^make\[\d\]:\sNothing to be done')
     link_re = re.compile(r'^\s+CCLD\s+(\w+)')
@@ -58,8 +60,12 @@ class MakeParser(Parser):
         # Replaces each expression:
         replaces = dict()
         for expression in re.finditer(r'`(.*?)`', args):
-            output = subprocess.check_output(expression.group(1),
-                                             shell=True)
+            try:
+                output = subprocess.check_output(expression.group(1),
+                                                 stderr=subprocess.STDOUT,
+                                                 shell=True)
+            except subprocess.CalledProcessError:
+                output = 'makegyp_unknown_evaluation'
             replaces[expression.group(0)] = output.strip()
         for expression, value in replaces.items():
             args = args.replace(expression, value)
@@ -83,32 +89,61 @@ class MakeParser(Parser):
             return 'make_mode'
 
     def _handle_end_make_args(self, args):
-        self.current_directory = os.path.relpath(
-            os.path.join(self.current_directory, '..'))
+        pass
 
     def _handle_make_mode_args(self, args):
         self.make_mode = re.sub(self.make_mode_re, r'\1', args)
 
     def _handle_start_make_args(self, args):
-        directory_name = re.sub(self.start_make_re, r'\1', args)
-        path = os.path.join(self.current_directory, directory_name)
-        if not os.path.isdir(path):
-            path = os.path.join(self.current_directory, '..', directory_name)
-        self.current_directory = os.path.relpath(path)
+        # Determines the current working directory:
+        target_directory = re.sub(self.start_make_re, r'\1', args)
+        current_directory = self.current_directory
+        while True:
+            directory = os.path.join(current_directory, target_directory)
+            directory = os.path.relpath(directory)
+            if os.path.isdir(directory):
+                self.current_directory = directory
+                return
+            else:
+                current_directory = os.path.join(current_directory, '..')
+                current_directory = os.path.relpath(current_directory)
+                if current_directory.startswith('..'):
+                    print 'Cannot find target directory: %r' % target_directory
+                    exit(1)
 
     def _handle_unknown_args(self, args):
         pass
 
     def get_config_files(self, configure_output):
         config_files = list()
+        current_directory = '.'
+
+        switch_dir_re = re.compile(r'continue configure in \w+ builddir \"(.*)\"\s*')
 
         for line in configure_output.split('\n'):
-            if not self.config_file_re.match(line):
+            config_file = None
+
+            # Switching directory:
+            if switch_dir_re.match(line):
+                target_directory = re.sub(switch_dir_re, r'\1', line)
+                current_directory = os.path.join(current_directory,
+                                                 target_directory)
+                current_directory = os.path.relpath(current_directory)
+                continue
+            # Creating config file:
+            elif self.config_creating_re.match(line):
+                config_file = re.sub(self.config_creating_re, r'\1', line)
+            elif self.config_linking_re.match(line):
+                config_file = re.sub(self.config_linking_re, r'\1', line)
+            else:
                 continue
 
-            config_file = re.sub(self.config_file_re, r'\1', line)
-            if config_file:
-                config_files.append(config_file)
+            config_file_path = os.path.join(current_directory, config_file)
+            config_file_path = os.path.relpath(config_file_path)
+            if os.path.isfile(config_file_path):
+                config_files.append(config_file_path)
+            else:
+                print 'Failed to get config file at %r' % config_file_path
 
         return config_files
 
@@ -291,7 +326,8 @@ class GccParser(MakeParser):
     gcc_argument_parser = argparser.GccArgumentParser()
 
     # Regular expression patterns:
-    library_re = re.compile(r'^/?(.+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
+    library_re = re.compile(
+        r'^(\.{0,2}/)?([\.\w]+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
 
     def _add_compiled_object(self, parsed_args):
         """Add parsed arguments to the compiled object list.
@@ -308,6 +344,7 @@ class GccParser(MakeParser):
         current_directory = self.current_directory
         while True:
             source_path = os.path.join(current_directory, source)
+            source_path = os.path.relpath(source_path)
             if os.path.isfile(source_path):
                 self.current_directory = current_directory
                 break
@@ -321,6 +358,19 @@ class GccParser(MakeParser):
 
         dirname = os.path.join(current_directory, parsed_args.output)
         dirname = os.path.relpath(os.path.dirname(dirname))
+        parsed_args.sources[0] = source_path
+
+        revised_include_dirs = set()
+        for include_dir_arg in ['include_dirs', 'iquote']:
+            include_dirs = getattr(parsed_args, include_dir_arg)
+            if include_dirs is None:
+                continue
+
+            for include_dir in include_dirs:
+                include_dir = os.path.join(current_directory, include_dir)
+                include_dir = os.path.relpath(include_dir)
+                revised_include_dirs.add(include_dir)
+        parsed_args.include_dirs = sorted(revised_include_dirs)
 
         if dirname in self.compiled_objects:
             compiled_objects = self.compiled_objects[dirname]
@@ -361,7 +411,7 @@ class GccParser(MakeParser):
             # If the source path represents a dependency, find the corresponded
             # target instance and get the target name:
             if re.match(self.library_re, source_path):
-                library_name = re.sub(self.library_re, r'lib\3', source_path)
+                library_name = re.sub(self.library_re, r'lib\4', source_path)
                 for cached_target in self.targets:
                     if cached_target.name == library_name:
                         target.dependencies.add(cached_target)
@@ -394,20 +444,14 @@ class GccParser(MakeParser):
             object_key = self._get_object_key(source_path)
             source_args = compiled_objects[object_key]
             # Adds source path:
-            source_path = os.path.join(dirname, source_args.sources[0])
-            source_path = os.path.relpath(source_path)
+            # source_path = os.path.join(dirname, source_args.sources[0])
+            # source_path = os.path.relpath(source_path)
+            source_path = source_args.sources[0]
             target.sources.add(source_path)
             # Adds include dirs:
             if source_args.include_dirs is not None:
-                for include_dir in source_args.include_dirs:
-                    include_dir = os.path.join(dirname, include_dir)
-                    include_dir = os.path.relpath(include_dir)
-                    target.include_dirs.add(include_dir)
-            if source_args.iquote is not None:
-                for include_dir in source_args.iquote:
-                    include_dir = os.path.join(dirname, include_dir)
-                    include_dir = os.path.relpath(include_dir)
-                    target.include_dirs.add(include_dir)
+                target.include_dirs = target.include_dirs.union(
+                    source_args.include_dirs)
             # Adds defines:
             if source_args.defines is not None:
                 target.defines = target.defines.union(source_args.defines)

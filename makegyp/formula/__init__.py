@@ -192,19 +192,26 @@ class Formula(object):
         # Determines the directory to keep config files:
         config_dir = os.path.join(self.config_root, gyp.get_os(),
                                   gyp.get_arch())
+        # make sure the directory existed
+        try:
+            os.makedirs(config_dir)
+        except OSError as error:
+            if error.errno != 17:
+                raise error
 
         # Copies each generated config file:
         for config in self.parser.get_config_files(output):
             src = os.path.join(self.tmp_package_path, config)
             dest = os.path.join(config_dir, os.path.basename(config))
-            # make sure the directory existed
-            try:
-                os.makedirs(os.path.dirname(dest))
-            except OSError as error:
-                if error.errno != 17:
-                    raise error
 
-            shutil.copyfile(src, dest)
+            try:
+                shutil.copyfile(src, dest)
+            except IOError as error:
+                if error.errno == 2:
+                    print 'Failed to copy config file: %r' % config
+                    exit(1)
+                else:
+                    raise error
             print 'Generated config file: %s' % dest
 
     def __process(self, log_name, args):
@@ -239,7 +246,7 @@ class Formula(object):
             try:
                 output = subprocess.check_output(args, shell=True)
             except subprocess.CalledProcessError as e:
-                print 'Failed to process the formula: %s' % e.output
+                print 'Failed to process the formula: %s' % args
                 exit(1)
 
             # Preserves the output for debug and reuse:
