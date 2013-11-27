@@ -61,6 +61,9 @@ class Formula(object):
         if not self.name:
             self.name = self.__class__.__name__.lower()
 
+        # Determines the install path:
+        self.install_path = os.path.join(self.deps_dir, self.package_name)
+
     def __add_direct_dependent_settings_to_target(self, target):
         # Retrieves default include dirs as a set:
         try:
@@ -317,23 +320,29 @@ class Formula(object):
 
         # Copies library source code along generated files to destination:
         archive_path = os.path.join(self.tmp_dir, os.path.basename(self.url))
-        install_path = os.path.join(self.deps_dir, self.package_name)
-        print 'Copying library source code to %r' % install_path
+        print 'Copying library source code to %r' % self.install_path
         archive.extract_archive(archive_path, self.deps_dir)
+
         # Copies config files:
-        config_dest = os.path.join(install_path, kConfigRootDirectoryName)
+        config_dest = os.path.join(self.install_path, kConfigRootDirectoryName)
         print 'Copying config files to %r' % config_dest
         try:
-            shutil.copytree(self.config_root, config_dest)
+            shutil.rmtree(config_dest)
         except OSError as error:
-            if error.errno == 17:
-                pass
+            if error.errno == 2:
+                pass  # don't care if the directory not exists
+        shutil.copytree(self.config_root, config_dest)
+
         # Copies gyp file:
-        gyp_dest = os.path.join(install_path, gyp_filename)
+        gyp_dest = os.path.join(self.install_path, gyp_filename)
         print 'Copying gyp file to %r' % gyp_dest
         shutil.copyfile(gyp_file_path, gyp_dest)
 
-        print 'Installed %r to %r' % (self.name, install_path)
+        # Post-precoesses the installed library:
+        print 'Post-processing the library...'
+        self.post_process()
+
+        print 'Installed %r to %r' % (self.name, self.install_path)
         target_prefix = os.path.join('gyp_deps', self.package_name,
                                      gyp_filename)
         for target in targets:
@@ -341,3 +350,7 @@ class Formula(object):
 
     def make(self):
         return list()
+
+    def post_process(self):
+        """This method will be called after the library installed."""
+        pass
