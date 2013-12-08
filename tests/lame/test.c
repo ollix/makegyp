@@ -4,6 +4,6 @@
 
 
 int main(int argc, char **argv) {
-    printf("get_lame_version(): %s\n", get_lame_version());
-    return 0;
+  printf("get_lame_version(): %s\n", get_lame_version());
+  return 0;
 }
