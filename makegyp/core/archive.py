@@ -35,9 +35,15 @@ def extract_archive(src, dest=None):
 
 def splitext(name):
     for archive_exts in all_archive_exts:
-        if name.endswith(archive_exts):
-            for archive_ext in archive_exts:
-                package_name, ext = name.rsplit(archive_ext)
-                if not ext:
-                    return (package_name, archive_ext)
+        if not name.endswith(archive_exts):
+            continue
+
+        for archive_ext in archive_exts:
+            if not name.endswith(archive_ext):
+                continue
+
+            package_name, ext = name.rsplit(archive_ext)
+            if not ext:
+                return (package_name, archive_ext)
+
     return (name, "")
