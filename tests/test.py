@@ -8,6 +8,7 @@ import sys
 module_path = os.path.abspath(__file__)
 test_root_dir = os.path.dirname(module_path)
 
+
 def test_library(name):
     print '* Test %r...' % name
     # Determines the directory of the tested library:
@@ -32,17 +33,21 @@ def test_library(name):
     # Gyp:
     gyp_command = 'gyp --depth=. -f ninja test.gyp'
     print '* Run %r' % gyp_command
-    subprocess.call(gyp_command, shell=True)
+    if subprocess.call(gyp_command, shell=True) != 0:
+        return False
 
     # Compiles:
     ninja_command = 'ninja -C out/Debug/'
     print '* Run %r' % ninja_command
-    subprocess.call(ninja_command, shell=True)
+    if subprocess.call(ninja_command, shell=True) != 0:
+        return False
 
     # Run executable:
     executable_command = 'out/Debug/test'
     print '* Run %r' % executable_command
-    subprocess.call(executable_command, shell=True)
+    if subprocess.call(executable_command, shell=True) != 0:
+        return False
+
     return True
 
 
@@ -71,6 +76,7 @@ if __name__ == "__main__":
             successful_tests.add(library_name)
         else:
             failed_tests.add(library_name)
+
         print '=' * 3
 
     print '* Test results:'
