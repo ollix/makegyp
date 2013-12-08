@@ -444,8 +444,6 @@ class GccParser(MakeParser):
             object_key = self._get_object_key(source_path)
             source_args = compiled_objects[object_key]
             # Adds source path:
-            # source_path = os.path.join(dirname, source_args.sources[0])
-            # source_path = os.path.relpath(source_path)
             source_path = source_args.sources[0]
             target.sources.add(source_path)
             # Adds include dirs:
@@ -455,6 +453,13 @@ class GccParser(MakeParser):
             # Adds defines:
             if source_args.defines is not None:
                 target.defines = target.defines.union(source_args.defines)
+            # Add libraries:
+            if hasattr(parsed_args, 'libs') and parsed_args.libs:
+                for lib in parsed_args.libs:
+                    target.libraries.add('-l%s' % lib)
+            if hasattr(parsed_args, 'frameworks') and parsed_args.frameworks:
+                for framework in parsed_args.frameworks:
+                    target.libraries.add('-framework %s' % framework)
 
     def _handle_unknown_args(self, args):
         # Determines the argument type and generates parsed arguments:

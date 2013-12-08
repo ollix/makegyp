@@ -44,6 +44,7 @@ class Target(object):
             self.name = 'lib%s' % self.name
         self.defines = set()
         self.dependencies = set()  # should be a list of Target objects
+        self.libraries = set()
         self.include_dirs = set()
         self.sources = set()
 
@@ -61,6 +62,8 @@ class Target(object):
         obj['type'] = self.type
         obj['sources'] = sorted(self.sources)
         obj['include_dirs'] = sorted(self.include_dirs)
+        obj['link_settings'] = collections.OrderedDict()
+        obj['link_settings']['libraries'] = sorted(self.libraries)
         obj['defines'] = sorted(self.defines)
         obj['dependencies'] = sorted(self.dependencies)
         return json.dumps(obj, indent=4)
@@ -73,6 +76,9 @@ class Target(object):
             obj['sources'] = sorted(self.sources)
         if self.include_dirs:
             obj['include_dirs'] = sorted(self.include_dirs)
+        if self.libraries:
+            obj['link_settings'] = collections.OrderedDict()
+            obj['link_settings']['libraries'] = sorted(self.libraries)
         if self.defines:
             obj['defines'] = sorted(self.defines)
         if self.dependencies:

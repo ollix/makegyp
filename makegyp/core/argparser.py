@@ -149,6 +149,8 @@ class GccArgumentParser(ArgumentParser):
         self.add_argument('-compatibility_version')
         self.add_argument('-current_version')
         self.add_argument('-f', action='append')
+        self.add_argument('-framework', action='append', dest='frameworks')
+        self.add_argument('-export-symbols-regex')
         self.add_argument('-g', action='store_true')
         self.add_argument('-dynamiclib', action='store_true')
         self.add_argument('-D', action='append', dest='defines')
