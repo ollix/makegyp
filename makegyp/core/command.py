@@ -13,12 +13,27 @@ def edit(args):
     print 'edit:', args
 
 def install(args):
-    library_names = args.library_names
+    library_names = set(args.library_names)
     package_root = os.path.dirname(makegyp.__file__)
     formula_root = os.path.join(package_root, 'formula')
 
     # Determines the current directory:
     curdir = os.path.abspath(os.path.curdir)
+
+    # Adds libraries specified in `gyp_deps.txt` at the current directory:
+    gyp_deps_path = os.path.join(curdir, 'gyp_deps.txt')
+    if os.path.isfile(gyp_deps_path):
+        gyp_deps_file = file(gyp_deps_path, 'r')
+        for line in gyp_deps_file:
+            library_name = line.split('#', 1)[0].strip()
+            library_names.add(library_name)
+        gyp_deps_file.close()
+
+    if not library_names:
+        print 'No library is specified. You can specify libraries as ' \
+        'arguments or list them in the `gyp_deps.txt` file at the current ' \
+        'directory.'
+        exit(1)
 
     # Creates the gyp_deps subdirectory at the current directory for keeping
     # installed libraries:
@@ -46,8 +61,7 @@ def install(args):
         instance.install()
         print '#' * 3
 
-    library_names.sort()
-    print '%r %s installed at %r' % (library_names,
+    print '%r %s installed at %r' % (sorted(library_names),
                                      'is' if len(library_names) == 1 else 'are',
                                      dest_dir)
 
