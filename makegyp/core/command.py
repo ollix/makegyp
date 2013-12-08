@@ -26,7 +26,8 @@ def install(args):
         gyp_deps_file = file(gyp_deps_path, 'r')
         for line in gyp_deps_file:
             library_name = line.split('#', 1)[0].strip()
-            library_names.add(library_name)
+            if library_name:
+                library_names.add(library_name)
         gyp_deps_file.close()
 
     if not library_names:
