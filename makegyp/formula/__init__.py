@@ -61,8 +61,16 @@ class Formula(object):
         if not self.name:
             self.name = self.__class__.__name__.lower()
 
+        # Determines the path to keep output files that will be copied to
+        # install path:
+        self.tmp_output_path = os.path.join(self.tmp_dir, 'output')
+        self.tmp_raw_package_output_path = os.path.join(self.tmp_output_path,
+                                                        self.package_name)
+        self.tmp_package_output_path = os.path.join(self.tmp_output_path,
+                                                    self.name)
+
         # Determines the install path:
-        self.install_path = os.path.join(self.deps_dir, self.package_name)
+        self.install_path = os.path.join(self.deps_dir, self.name)
 
     def __add_direct_dependent_settings_to_target(self, target):
         # Retrieves default include dirs as a set:
@@ -322,42 +330,50 @@ class Formula(object):
         gyp_filename = "%s.gyp" % self.name
         gyp_file_path = os.path.join(self.tmp_package_path, gyp_filename)
         gyp_file = open(gyp_file_path, "w")
+        gyp_file.write('# makegyp: %s\n' % self.package_name)
         json.dump(self.gyp, gyp_file, indent=4)
         gyp_file.close()
 
         # Copies library source code along generated files to destination:
+        shutil.rmtree(self.tmp_package_output_path, True)
         archive_path = os.path.join(self.tmp_dir, os.path.basename(self.url))
         print 'Copying library source code to %r' % self.install_path
-        archive.extract_archive(archive_path, self.deps_dir)
+        try:
+            os.mkdir(self.tmp_output_path)
+        except OSError as error:
+            # Ignores error if the deps directory already exists.
+            if not error.errno == 17:
+                raise error
+        archive.extract_archive(archive_path, self.tmp_output_path)
+        os.rename(self.tmp_raw_package_output_path,
+                  self.tmp_package_output_path)
 
         # Copies config files:
-        config_dest = os.path.join(self.install_path, kConfigRootDirectoryName)
+        config_dest = os.path.join(self.tmp_package_output_path,
+                                   kConfigRootDirectoryName)
         print 'Copying config files to %r' % config_dest
-        try:
-            shutil.rmtree(config_dest)
-        except OSError as error:
-            if error.errno == 2:
-                pass  # don't care if the directory not exists
         shutil.copytree(self.config_root, config_dest)
 
         # Copies gyp file:
-        gyp_dest = os.path.join(self.install_path, gyp_filename)
+        gyp_dest = os.path.join(self.tmp_package_output_path, gyp_filename)
         print 'Copying gyp file to %r' % gyp_dest
         shutil.copyfile(gyp_file_path, gyp_dest)
 
         # Post-precoesses the installed library:
         print 'Post-processing the library...'
-        self.post_process()
+        self.post_process(self.tmp_package_output_path)
+
+        shutil.rmtree(self.install_path, True)
+        shutil.copytree(self.tmp_package_output_path, self.install_path)
 
         print 'Installed %r to %r' % (self.name, self.install_path)
-        target_prefix = os.path.join('gyp_deps', self.package_name,
-                                     gyp_filename)
+        target_prefix = os.path.join('gyp_deps', self.name, gyp_filename)
         for target in targets:
             print '- %s::%s:%s' % (target.type, target_prefix, target.name)
 
     def make(self):
         return list()
 
-    def post_process(self):
+    def post_process(self, package_root):
         """This method will be called after the library installed."""
         pass

@@ -15,9 +15,9 @@ class Faad2(formula.Formula):
     def make(self):
         return 'make'
 
-    def post_process(self):
+    def post_process(self, package_root):
         # Fixes the include path in libfaad/common.h
-        source_path = os.path.join(self.install_path, 'libfaad', 'common.h')
+        source_path = os.path.join(package_root, 'libfaad', 'common.h')
         source_file = open(source_path, 'r')
         source = source_file.read()
         source_file.close()
