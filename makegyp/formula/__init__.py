@@ -24,20 +24,8 @@ class Formula(object):
     url = None
     sha256 = None
 
-    def __init__(self):
+    def __init__(self, install_dir):
         self.gyp = collections.OrderedDict()
-
-        # Creates the deps directory for keeping installed libraries:
-        self.deps_dir = os.path.join(os.path.curdir, 'gyp_deps')
-        self.deps_dir = os.path.abspath(self.deps_dir)
-        try:
-            os.mkdir(self.deps_dir)
-        except OSError as error:
-            # Ignores error if the deps directory already exists.
-            if not error.errno == 17:
-                raise error
-        else:
-            print "Created 'gyp_deps' directory."
 
         # Creates the temporary directory:
         self.tmp_dir = os.path.join(tempfile.gettempdir(), 'makegyp')
@@ -70,7 +58,8 @@ class Formula(object):
                                                     self.name)
 
         # Determines the install path:
-        self.install_path = os.path.join(self.deps_dir, self.name)
+        self.install_path = os.path.join(install_dir, self.name)
+        print 'self.install_path:', self.install_path
 
     def __add_direct_dependent_settings_to_target(self, target):
         # Retrieves default include dirs as a set:
@@ -322,6 +311,7 @@ class Formula(object):
         except subprocess.CalledProcessError:
             pass
         output = self.__process('makegyp_make_log', self.make())
+
         print 'Generating gyp file...'
         targets = self.parser.get_targets(output)
         self.__add_targets_to_gyp(targets)

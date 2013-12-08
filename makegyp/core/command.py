@@ -13,18 +13,32 @@ def edit(args):
     print 'edit:', args
 
 def install(args):
+    library_names = args.library_names
     package_root = os.path.dirname(makegyp.__file__)
     formula_root = os.path.join(package_root, 'formula')
-    try:
-        find_module_result = imp.find_module(args.library_name, [formula_root])
-    except ImportError:
-        print 'No matched formula found for library:', args.library_name
-        exit(1)
 
-    module = imp.load_module(args.library_name, *find_module_result)
-    class_ = getattr(module, args.library_name.title())
-    instance = class_()
-    instance.install()
+    # Creates the gyp_deps subdirectory at the current directory for keeping
+    # installed libraries:
+    deps_dir = os.path.join(os.path.curdir, 'gyp_deps')
+    deps_dir = os.path.abspath(deps_dir)
+    try:
+        os.mkdir(deps_dir)
+    except OSError as error:
+        # Ignores error if the deps directory already exists.
+        if not error.errno == 17:
+            raise error
+
+    for library_name in library_names:
+        try:
+            find_module_result = imp.find_module(library_name, [formula_root])
+        except ImportError:
+            print 'No matched formula found for library:', library_name
+            exit(1)
+
+        module = imp.load_module(library_name, *find_module_result)
+        class_ = getattr(module, library_name.title())
+        instance = class_(deps_dir)
+        instance.install()
 
 
 # Command configuration
@@ -46,10 +60,9 @@ parser_install = subparsers.add_parser('install', help='install a library')
 parser_install.add_argument('-d', '--dest', help='path to install the library')
 parser_install.add_argument('-t', '--test', action='store_true',
                             help='test the building process')
+parser_install.add_argument('library_names', metavar='library_name', nargs='*')
 parser_install.set_defaults(func=install)
 
-
-parser.add_argument('library_name')
 
 def execute_from_command_line():
     if len(sys.argv) == 1:
@@ -57,5 +70,4 @@ def execute_from_command_line():
         return
 
     args = parser.parse_args()
-    args.library_name = args.library_name.lower()
     args.func(args)
