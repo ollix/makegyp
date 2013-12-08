@@ -58,6 +58,8 @@ class Formula(object):
                                                     self.name)
 
         # Determines the install path:
+        install_dir = os.path.abspath(install_dir)
+        self.install_dir = os.path.relpath(install_dir)
         self.install_path = os.path.join(install_dir, self.name)
 
     def __add_direct_dependent_settings_to_target(self, target):
@@ -356,7 +358,7 @@ class Formula(object):
         shutil.copytree(self.tmp_package_output_path, self.install_path)
 
         print 'Installed %r to %r' % (self.name, self.install_path)
-        target_prefix = os.path.join('gyp_deps', self.name, gyp_filename)
+        target_prefix = os.path.join(self.install_dir, self.name, gyp_filename)
         for target in targets:
             print '- %s::%s:%s' % (target.type, target_prefix, target.name)
 

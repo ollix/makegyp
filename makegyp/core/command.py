@@ -17,18 +17,23 @@ def install(args):
     package_root = os.path.dirname(makegyp.__file__)
     formula_root = os.path.join(package_root, 'formula')
 
+    # Determines the current directory:
+    curdir = os.path.abspath(os.path.curdir)
+
     # Creates the gyp_deps subdirectory at the current directory for keeping
     # installed libraries:
-    deps_dir = os.path.join(os.path.curdir, 'gyp_deps')
-    deps_dir = os.path.abspath(deps_dir)
+    dest_dir = args.dest if args.dest else os.path.join(curdir, 'gyp_deps')
+    dest_dir = os.path.abspath(dest_dir)
     try:
-        os.mkdir(deps_dir)
+        os.makedirs(dest_dir)
     except OSError as error:
         # Ignores error if the deps directory already exists.
         if not error.errno == 17:
             raise error
 
     for library_name in library_names:
+        os.chdir(curdir)
+
         try:
             find_module_result = imp.find_module(library_name, [formula_root])
         except ImportError:
@@ -37,14 +42,14 @@ def install(args):
 
         module = imp.load_module(library_name, *find_module_result)
         class_ = getattr(module, library_name.title())
-        instance = class_(deps_dir)
+        instance = class_(dest_dir)
         instance.install()
         print '#' * 3
 
     library_names.sort()
     print '%r %s installed at %r' % (library_names,
                                      'is' if len(library_names) == 1 else 'are',
-                                     deps_dir)
+                                     dest_dir)
 
 
 # Command configuration
@@ -63,7 +68,8 @@ parser_edit.set_defaults(func=edit)
 
 # Subcommand: install
 parser_install = subparsers.add_parser('install', help='install a library')
-parser_install.add_argument('-d', '--dest', help='path to install the library')
+parser_install.add_argument('-d', '--dest',
+                            help='directory to install the library')
 parser_install.add_argument('-t', '--test', action='store_true',
                             help='test the building process')
 parser_install.add_argument('library_names', metavar='library_name', nargs='*')
