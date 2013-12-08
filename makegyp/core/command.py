@@ -56,7 +56,10 @@ def install(args):
             print 'No matched formula found for library:', library_name
             exit(1)
 
-        module = imp.load_module(library_name, *find_module_result)
+        for result in find_module_result:
+            if isinstance(result, str) and result.endswith('.py'):
+                module = imp.load_source('formula', result)
+                break
         class_ = getattr(module, library_name.title())
         instance = class_(dest_dir)
         instance.install()
