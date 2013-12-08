@@ -59,7 +59,6 @@ class Formula(object):
 
         # Determines the install path:
         self.install_path = os.path.join(install_dir, self.name)
-        print 'self.install_path:', self.install_path
 
     def __add_direct_dependent_settings_to_target(self, target):
         # Retrieves default include dirs as a set:

@@ -39,6 +39,12 @@ def install(args):
         class_ = getattr(module, library_name.title())
         instance = class_(deps_dir)
         instance.install()
+        print '#' * 3
+
+    library_names.sort()
+    print '%r %s installed at %r' % (library_names,
+                                     'is' if len(library_names) == 1 else 'are',
+                                     deps_dir)
 
 
 # Command configuration
