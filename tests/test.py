@@ -45,14 +45,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Test makegyp formulas.'
     )
-    parser.add_argument('library_names', metavar='library_name', nargs='+')
+    parser.add_argument('library_names', metavar='library_name', nargs='*')
 
     if len(sys.argv) == 1:
         parser.print_help()
 
     args = parser.parse_args()
     library_names = set(args.library_names)
-    if 'all' in args.library_names:
+    if not library_names:
         library_names = set()
         for library_name in os.listdir(test_dir):
             path = os.path.join(test_dir, library_name)
