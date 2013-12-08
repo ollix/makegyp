@@ -3,7 +3,7 @@ import tarfile
 import zipfile
 
 
-tarfile_exts = ('.tar', '.tar.gz')
+tarfile_exts = ('.tar', '.tar.bz2', '.tar.gz')
 zip_exts = ('.zip',)
 all_archive_exts = (tarfile_exts, zip_exts)
 
