@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 
+from makegyp.core import command
+
 
 module_path = os.path.abspath(__file__)
 test_root_dir = os.path.dirname(module_path)
@@ -12,7 +14,7 @@ test_root_dir = os.path.dirname(module_path)
 def test_library(name):
     print '* Test %r...' % name
     # Determines the directory of the tested library:
-    test_dir = os.path.join(os.path.dirname(module_path), library_name)
+    test_dir = os.path.join(test_root_dir, name)
     test_dir = os.path.abspath(test_dir)
 
     if not os.path.isdir(test_dir):
@@ -25,12 +27,11 @@ def test_library(name):
 
     # Installs dependencies:
     print '* Installing dependencies...'
-    mkgyp_binary = os.path.join(os.path.dirname(module_path),
-                                '..', 'makegyp', 'bin', 'mkgyp.py')
-    mkgyp_binary = os.path.abspath(mkgyp_binary)
-    subprocess.call('python %s install' % mkgyp_binary, shell=True)
+    args = command.parser.parse_args(['install', name])
+    args.func(args)
 
     # Gyp:
+    os.chdir(test_dir)
     gyp_command = 'gyp --depth=. -f ninja test.gyp'
     print '* Run %r' % gyp_command
     if subprocess.call(gyp_command, shell=True) != 0:
