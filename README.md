@@ -137,5 +137,7 @@ Current working formulas
 - gtest
 - lame
 - libffi
+- libogg
+- libvorbis
+- mpg123
 - zlib
-
