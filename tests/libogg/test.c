@@ -25,7 +25,9 @@ int main () {
   int bytes;
   int i;
   int bufferSize = 4096;
+  FILE *ogg_file;
 
+  ogg_file = fopen("sample.ogg", "rb");
   r = ogg_sync_init(&oy); /* Now we can read pages */
   assert(r == 0);
 
@@ -33,7 +35,7 @@ int main () {
 
     /* submit a 4k block to the libogg sync layer */
     buffer = ogg_sync_buffer(&oy, bufferSize);
-    bytes = fread(buffer, 1, bufferSize, stdin);
+    bytes = fread(buffer, 1, bufferSize, ogg_file);
     if (bytes == 0) {
       fprintf(stderr, "Got stdin EOF.\n");
       r = 0; break;
@@ -139,6 +141,7 @@ int main () {
 
   /* OK, clean up the framer */
   ogg_sync_clear(&oy);
+  fclose(ogg_file);
 
   fprintf(stderr,"\nDone.\n");
   return r;
