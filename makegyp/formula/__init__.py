@@ -267,7 +267,7 @@ class Formula(object):
                     raise error
             print 'Generated config file: %s' % dest
 
-    def __process(self, log_name, args):
+    def __process(self, log_name, args, pre_process_func=None):
         """Process the args and preserve the output.
 
         Returns the output of the processed arguments.
@@ -295,6 +295,9 @@ class Formula(object):
             log_file.close()
 
         if needs_to_process:
+            if pre_process_func is not None:
+                pre_process_func()
+
             try:
                 output = subprocess.check_output(args, shell=True)
             except subprocess.CalledProcessError as e:
@@ -374,12 +377,14 @@ class Formula(object):
         self.__generate_config_files()
         print 'Making...'
         # Tries to clean built files before actually do make:
-        try:
-            subprocess.check_output('make clean', stderr=subprocess.STDOUT,
-                                    shell=True)
-        except subprocess.CalledProcessError:
-            pass
-        output = self.__process('makegyp_make_log', self.make())
+        def clean_make():
+            try:
+                subprocess.check_output('make clean', stderr=subprocess.STDOUT,
+                                        shell=True)
+            except subprocess.CalledProcessError:
+                pass
+        output = self.__process('makegyp_make_log', self.make(),
+                                pre_process_func=clean_make)
 
         print 'Generating gyp file...'
         targets = self.parser.get_targets(output)
