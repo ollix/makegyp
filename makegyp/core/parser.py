@@ -368,7 +368,8 @@ class GccParser(MakeParser):
 
             for include_dir in include_dirs:
                 include_dir = os.path.join(current_directory, include_dir)
-                include_dir = os.path.relpath(include_dir)
+                if not os.path.isabs(include_dir):
+                    include_dir = os.path.relpath(include_dir)
                 revised_include_dirs.add(include_dir)
         parsed_args.include_dirs = sorted(revised_include_dirs)
 
@@ -455,11 +456,10 @@ class GccParser(MakeParser):
                 target.defines = target.defines.union(source_args.defines)
             # Add libraries:
             if hasattr(parsed_args, 'libs') and parsed_args.libs:
-                for lib in parsed_args.libs:
-                    target.libraries.add('-l%s' % lib)
+                target.libraries = target.libraries.union(parsed_args.libs)
             if hasattr(parsed_args, 'frameworks') and parsed_args.frameworks:
-                for framework in parsed_args.frameworks:
-                    target.libraries.add('-framework %s' % framework)
+                frameworks = parsed_args.frameworks
+                target.frameworks = target.frameworks.union(frameworks)
 
     def _handle_unknown_args(self, args):
         # Determines the argument type and generates parsed arguments:

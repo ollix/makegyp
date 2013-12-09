@@ -43,7 +43,8 @@ class Target(object):
         if self.type == 'library':
             self.name = 'lib%s' % self.name
         self.defines = set()
-        self.dependencies = set()  # should be a list of Target objects
+        self.dependencies = set()  # should be a list of Target objects or str
+        self.frameworks = set()
         self.libraries = set()
         self.include_dirs = set()
         self.sources = set()
@@ -56,19 +57,7 @@ class Target(object):
         name = re.sub(self.target_name_pattern, r'\1', filename)
         self.dependencies.add(name)
 
-    def dump(self):
-        obj = collections.OrderedDict()
-        obj['name'] = self.name
-        obj['type'] = self.type
-        obj['sources'] = sorted(self.sources)
-        obj['include_dirs'] = sorted(self.include_dirs)
-        obj['link_settings'] = collections.OrderedDict()
-        obj['link_settings']['libraries'] = sorted(self.libraries)
-        obj['defines'] = sorted(self.defines)
-        obj['dependencies'] = sorted(self.dependencies)
-        return json.dumps(obj, indent=4)
-
-    def gyp_dict(self):
+    def gyp_dict(self, dependencies=None):
         obj = collections.OrderedDict()
         obj['target_name'] = self.name
         obj['type'] = 'static_library' if self.type == 'library' else self.type
@@ -76,12 +65,22 @@ class Target(object):
             obj['sources'] = sorted(self.sources)
         if self.include_dirs:
             obj['include_dirs'] = sorted(self.include_dirs)
-        if self.libraries:
+        if self.libraries or self.frameworks:
             obj['link_settings'] = collections.OrderedDict()
-            obj['link_settings']['libraries'] = sorted(self.libraries)
+            libraries = obj['link_settings']['libraries'] = list()
+            for framework in sorted(self.frameworks):
+                libraries.append('-framework %s' % framework)
+            for library in sorted(self.libraries):
+                libraries.append('-l%s' % library)
         if self.defines:
             obj['defines'] = sorted(self.defines)
         if self.dependencies:
-            obj['dependencies'] = \
-                sorted([target.name for target in self.dependencies])
+            dependencies = set()
+            for dependency in self.dependencies:
+                if isinstance(dependency, Target):
+                    dependencies.add(dependency.name)
+                elif isinstance(dependency, str):
+                    dependencies.add(dependency)
+            obj['dependencies'] = sorted(dependencies)
+
         return obj

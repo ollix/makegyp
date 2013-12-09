@@ -1,9 +1,8 @@
 import argparse
-import imp
 import os
 import sys
 
-import makegyp
+from makegyp.core import utils
 
 
 def create(args):
@@ -14,8 +13,6 @@ def edit(args):
 
 def install(args):
     library_names = set(args.library_names)
-    package_root = os.path.dirname(makegyp.__file__)
-    formula_root = os.path.join(package_root, 'formula')
 
     # Determines the current directory:
     curdir = os.path.abspath(os.path.curdir)
@@ -49,21 +46,7 @@ def install(args):
 
     for library_name in library_names:
         os.chdir(curdir)
-
-        try:
-            find_module_result = imp.find_module(library_name, [formula_root])
-        except ImportError:
-            print 'No matched formula found for library:', library_name
-            exit(1)
-
-        for result in find_module_result:
-            if isinstance(result, str) and result.endswith('.py'):
-                module = imp.load_source('formula', result)
-                break
-        class_ = getattr(module, library_name.title())
-        instance = class_(dest_dir)
-        instance.install()
-        print '#' * 3
+        utils.install_formula(library_name, dest_dir)
 
     print '%r %s installed at %r' % (sorted(library_names),
                                      'is' if len(library_names) == 1 else 'are',

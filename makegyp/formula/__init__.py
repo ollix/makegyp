@@ -13,6 +13,7 @@ import urlparse
 from makegyp.core import archive
 from makegyp.core import gyp
 from makegyp.core import parser
+from makegyp.core import utils
 
 
 kConfigRootDirectoryName = "gyp_config"
@@ -23,6 +24,7 @@ class Formula(object):
     parser = None
     url = None
     sha256 = None
+    dependencies = list()
 
     def __init__(self, install_dir):
         self.gyp = collections.OrderedDict()
@@ -58,9 +60,8 @@ class Formula(object):
                                                     self.name)
 
         # Determines the install path:
-        install_dir = os.path.abspath(install_dir)
-        self.install_dir = os.path.relpath(install_dir)
-        self.install_path = os.path.join(install_dir, self.name)
+        self.install_dir = os.path.abspath(install_dir)
+        self.install_path = os.path.join(self.install_dir, self.name)
 
     def __add_direct_dependent_settings_to_target(self, target):
         # Retrieves default include dirs as a set:
@@ -82,8 +83,62 @@ class Formula(object):
         target['direct_dependent_settings'] = {'include_dirs': include_dirs}
 
     def __add_targets_to_gyp(self, targets):
-        target_gyp_dicts = [target.gyp_dict() for target in targets]
+        # Adds target dependencies:
+        if self.dependencies:
+            dependencies = dict()
+            for target in targets:
+                for library in target.libraries:
+                    if library in dependencies:
+                        continue
 
+                    # Finds matched dependency:
+                    for dependency in self.dependencies:
+                        dependency_dir = os.path.join(self.install_dir,
+                                                      dependency)
+                        if not os.path.isdir(dependency_dir):
+                            continue
+
+                        gyp_file_path = os.path.join(dependency_dir,
+                                                     '%s.gyp' % dependency)
+                        if not os.path.isfile(gyp_file_path):
+                            continue
+
+                        gyp_file = file(gyp_file_path, 'r')
+                        gyp_file.readline()  # skips comment
+                        dependency_gyp = json.loads(gyp_file.read())
+                        gyp_file.close()
+
+                        target_names = [t['target_name'] \
+                            for t in dependency_gyp['targets']]
+
+                        library_target_name = 'lib%s' % library
+                        if library_target_name in target_names:
+                            dependency = '../%s/%s.gyp:%s' % \
+                                (dependency, dependency, library_target_name)
+                            dependencies[library] = dependency
+                            break
+                    else:
+                        dependencies[library] = None
+
+                for library in dependencies:
+                    dependency = dependencies[library]
+                    if library in target.libraries and dependency is not None:
+                        target.libraries.remove(library)
+                        target.dependencies.add(dependency)
+
+        # Replaces absolute path of include dirs to relative path:
+        for target in targets:
+            new_include_dirs = dict()
+            for include_dir in target.include_dirs:
+                if os.path.isabs(include_dir):
+                    new_dir = os.path.relpath(include_dir, self.install_path)
+                    new_include_dirs[include_dir] = new_dir
+            for old_include_dir, new_include_dir in new_include_dirs.items():
+                target.include_dirs.remove(old_include_dir)
+                target.include_dirs.add(new_include_dir)
+
+        # Extracts target defaults:
+        target_gyp_dicts = [target.gyp_dict() for target in targets]
         target_defaults = self.gyp['target_defaults']
         for keyword in gyp.Target.target_default_keywords:
             # Finds common values for the target default keyword:
@@ -185,7 +240,7 @@ class Formula(object):
         archive.extract_archive(file_path)
 
     def __generate_config_files(self):
-        output = self.__process('makegyp_configure_log', self.configure())
+        output = self.__process('makegyp_configure_log', self.configure_args)
 
         # Determines the directory to keep config files:
         config_dir = os.path.join(self.config_root, gyp.get_os(),
@@ -220,8 +275,7 @@ class Formula(object):
         log_file_path = os.path.join(self.tmp_package_path, log_name)
 
         if not hasattr(self, 'identifier'):
-            configure_args = ' '.join(self.configure())
-            self.identifier = hashlib.sha256(configure_args).hexdigest()
+            self.identifier = hashlib.sha256(self.configure_args).hexdigest()
             self.identifier = '# %s\n' % self.identifier
 
         args_string = args
@@ -290,6 +344,16 @@ class Formula(object):
             # platform and arch-specific headers
             '%s/<(OS)/<(target_arch)' % kConfigRootDirectoryName
         ]
+        self.gyp['target_defaults']['conditions'] = [
+            ["OS=='mac'", {
+                'conditions': [
+                    ["target_arch=='ia32'",
+                     {'xcode_settings': {'ARCHS': ['i386']}}],
+                    ["target_arch=='x64'",
+                     {'xcode_settings': {'ARCHS': ['x86_64']}}],
+                ]
+            }],
+        ]
 
         # Initializes targets
         self.gyp['targets'] = list()
@@ -298,11 +362,15 @@ class Formula(object):
         return list()
 
     def install(self):
+        # Remembers the current directory:
+        curdir = os.path.abspath(os.path.curdir)
+
         print 'Installing %s...' % self.name
         self.__reset_gyp()
         self.__download()
         os.chdir(self.tmp_package_path)
         print 'Configuring...'
+        self.configure_args = self.configure()
         self.__generate_config_files()
         print 'Making...'
         # Tries to clean built files before actually do make:
@@ -316,6 +384,9 @@ class Formula(object):
         print 'Generating gyp file...'
         targets = self.parser.get_targets(output)
         self.__add_targets_to_gyp(targets)
+
+        # Changes back to the original directory:
+        os.chdir(curdir)
 
         # Generates the GYP file:
         gyp_filename = "%s.gyp" % self.name
@@ -358,7 +429,8 @@ class Formula(object):
         shutil.copytree(self.tmp_package_output_path, self.install_path)
 
         print 'Installed %r to %r' % (self.name, self.install_path)
-        target_prefix = os.path.join(self.install_dir, self.name, gyp_filename)
+        target_prefix = os.path.join(os.path.relpath(self.install_dir),
+                                     self.name, gyp_filename)
         for target in targets:
             print '- %s::%s:%s' % (target.type, target_prefix, target.name)
 
