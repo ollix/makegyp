@@ -82,5 +82,6 @@ class Target(object):
                 elif isinstance(dependency, str):
                     dependencies.add(dependency)
             obj['dependencies'] = sorted(dependencies)
+            obj['export_dependent_settings'] = obj['dependencies']
 
         return obj

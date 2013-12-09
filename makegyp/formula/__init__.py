@@ -126,16 +126,20 @@ class Formula(object):
                         target.libraries.remove(library)
                         target.dependencies.add(dependency)
 
-        # Replaces absolute path of include dirs to relative path:
+        # Removes include_dirs pointing to dependencies:
         for target in targets:
-            new_include_dirs = dict()
+            to_removed_include_dirs = set()
             for include_dir in target.include_dirs:
-                if os.path.isabs(include_dir):
-                    new_dir = os.path.relpath(include_dir, self.install_path)
-                    new_include_dirs[include_dir] = new_dir
-            for old_include_dir, new_include_dir in new_include_dirs.items():
-                target.include_dirs.remove(old_include_dir)
-                target.include_dirs.add(new_include_dir)
+                if not os.path.isabs(include_dir):
+                    continue
+
+                # Makes sure the path is for dependency:
+                relpath = os.path.relpath(include_dir, self.install_dir)
+                if not relpath.startswith('..'):
+                    to_removed_include_dirs.add(include_dir)
+
+            target.include_dirs = target.include_dirs.difference(
+                to_removed_include_dirs)
 
         # Extracts target defaults:
         target_gyp_dicts = [target.gyp_dict() for target in targets]
