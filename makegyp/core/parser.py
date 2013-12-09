@@ -352,8 +352,7 @@ class GccParser(MakeParser):
                 current_directory = os.path.join(current_directory, '..')
                 current_directory = os.path.relpath(current_directory)
                 if current_directory == '..':
-                    print "Cannot find compiled object: %r at %r" % \
-                        (source_path, current_directory)
+                    print "Cannot find compiled object: %r" % source_path
                     exit(1)
 
         dirname = os.path.join(current_directory, parsed_args.output)
