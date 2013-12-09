@@ -41,10 +41,10 @@ class Formula(object):
         # Determines the path to temporary package:
         filename = os.path.basename(self.url)
         self.package_name, ext = archive.splitext(filename)
-        self.tmp_package_path = os.path.join(self.tmp_dir, self.package_name)
+        self.tmp_package_root = os.path.join(self.tmp_dir, self.package_name)
 
         # Determines the root path to keep generated config files:
-        self.config_root = os.path.join(self.tmp_package_path,
+        self.config_root = os.path.join(self.tmp_package_root,
                                         kConfigRootDirectoryName)
 
         # Guesses the library name:
@@ -198,8 +198,8 @@ class Formula(object):
             self.gyp['targets'].append(target)
 
     def __download(self):
-        if os.path.isdir(self.tmp_package_path):
-            print 'Use cached package at \'%s\'' % self.tmp_package_path
+        if os.path.isdir(self.tmp_package_root):
+            print 'Use cached package at \'%s\'' % self.tmp_package_root
             return
 
         filename = os.path.basename(self.url)
@@ -258,7 +258,7 @@ class Formula(object):
 
         # Copies each generated config file:
         for config in self.parser.get_config_files(output):
-            src = os.path.join(self.tmp_package_path, config)
+            src = os.path.join(self.tmp_package_root, config)
             dest = os.path.join(config_dir, os.path.basename(config))
 
             try:
@@ -276,7 +276,7 @@ class Formula(object):
 
         Returns the output of the processed arguments.
         """
-        log_file_path = os.path.join(self.tmp_package_path, log_name)
+        log_file_path = os.path.join(self.tmp_package_root, log_name)
 
         if not hasattr(self, 'identifier'):
             self.identifier = hashlib.sha256(self.configure_args).hexdigest()
@@ -375,7 +375,7 @@ class Formula(object):
         print 'Installing %s...' % self.name
         self.__reset_gyp()
         self.__download()
-        os.chdir(self.tmp_package_path)
+        os.chdir(self.tmp_package_root)
         print 'Configuring...'
         self.configure_args = self.configure()
         self.__generate_config_files()
@@ -399,7 +399,7 @@ class Formula(object):
 
         # Generates the GYP file:
         gyp_filename = "%s.gyp" % self.name
-        gyp_file_path = os.path.join(self.tmp_package_path, gyp_filename)
+        gyp_file_path = os.path.join(self.tmp_package_root, gyp_filename)
         gyp_file = open(gyp_file_path, "w")
         gyp_file.write('# makegyp: %s\n' % self.package_name)
         json.dump(self.gyp, gyp_file, indent=4)
