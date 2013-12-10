@@ -41,7 +41,7 @@ class MakeParser(Parser):
     # Object key:
     object_key_re = re.compile(r'^/?(.+?/)*(.+?)\.(o|lo)\s*$')
     # Start make: looks like "Making all in something"
-    start_make_re = re.compile(r'^Making all in ([\.\/\w]+)')
+    start_make_re = re.compile(r'^[Mm]aking all in ([\.\/\w]+?)\.*$')
 
     object_filename_exts = ('o', 'lo')
 

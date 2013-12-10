@@ -25,6 +25,7 @@ class Formula(object):
     url = None
     sha256 = None
     dependencies = list()
+    default_target_arch = gyp.get_arch()
 
     def __init__(self, install_dir):
         self.gyp = collections.OrderedDict()
@@ -248,7 +249,7 @@ class Formula(object):
 
         # Determines the directory to keep config files:
         config_dir = os.path.join(self.config_root, gyp.get_os(),
-                                  gyp.get_arch())
+                                  self.default_target_arch)
         # make sure the directory existed
         try:
             os.makedirs(config_dir)
@@ -322,7 +323,7 @@ class Formula(object):
 
         # Initializes target_defaults:
         self.gyp['variables'] = {
-            'target_arch%': gyp.get_arch(),
+            'target_arch%': self.default_target_arch,
         }
         self.gyp['target_defaults'] = collections.OrderedDict()
         self.gyp['target_defaults']['default_configuration'] = 'Debug'
@@ -402,6 +403,7 @@ class Formula(object):
         gyp_file_path = os.path.join(self.tmp_package_root, gyp_filename)
         gyp_file = open(gyp_file_path, "w")
         gyp_file.write('# makegyp: %s\n' % self.package_name)
+        self.patch_gyp_dict(self.gyp)
         json.dump(self.gyp, gyp_file, indent=4)
         gyp_file.close()
 
@@ -445,6 +447,10 @@ class Formula(object):
 
     def make(self):
         return list()
+
+    def patch_gyp_dict(self, gyp_dict):
+        """This method will be called before generating the GYP file."""
+        pass
 
     def post_process(self, package_root):
         """This method will be called after the library installed."""

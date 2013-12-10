@@ -137,6 +137,7 @@ class ArchiverArgumentParser(ArgumentParser):
 class GccArgumentParser(ArgumentParser):
     patterns = [(r'^(.*?--mode=compile\s)?\s?gcc\s(.*?)$', r'\2', 'compile'),
                 (r'^(.*?--mode=link\s)?\s?gcc\s(.*?)$', r'\2', 'link'),
+                (r'^cc\s+(.*)$', r'\1', 'compile'),
                 (r'^libtool:\s+compile:\s+gcc\s+(.*)$', r'\1', 'compile'),
                 (r'^libtool:\s+link:\s+gcc\s+(.*)$', r'\1', 'link'),
                 (r'^libtool\s+(.+)$', r'\1', 'link')]
@@ -145,6 +146,7 @@ class GccArgumentParser(ArgumentParser):
 
     def __init__(self, *args, **kwargs):
         super(GccArgumentParser, self).__init__(*args, **kwargs)
+        self.add_argument('-arch')
         self.add_argument('-c', action='store_true')
         self.add_argument('-compatibility_version')
         self.add_argument('-current_version')
