@@ -23,6 +23,36 @@ class ArgumentParser(argparse.ArgumentParser):
         super(ArgumentParser, self).add_argument(*args, **kwargs)
         self.__args[args] = kwargs
 
+    def clean_string_arg(self, arg):
+        if not isinstance(arg, str) or len(arg) < 2:
+            return arg
+
+        brackets = "'\""
+        if arg[0] in brackets and arg[-1] == arg[0]:
+            return arg[1:-1]
+        else:
+            return arg
+
+    def clean_parsed_args(self, parsed_args):
+        # Removes duplicated values for list objects:
+        parsed_args = vars(parsed_args);
+        for key, value in parsed_args.iteritems():
+            if isinstance(value, list):
+                new_value = set()
+                for item in value:
+                    if isinstance(item, list):
+                        try:
+                            item.remove([])
+                        except ValueError:
+                            pass
+                        for arg in item:
+                            new_value.add(self.clean_string_arg(arg))
+                    else:  # item is not a list
+                        new_value.add(self.clean_string_arg(item))
+                parsed_args[key] = sorted(new_value)
+            else:
+                parsed_args[key] = self.clean_string_arg(value)
+
     def match_pattern(self, args):
         for pattern in self.patterns:
             if re.match(pattern[0], args):
@@ -45,7 +75,16 @@ class ArgumentParser(argparse.ArgumentParser):
                                                    arg_string)
             exit(1)
 
-        # Reorders the arguments by moving all pure arguments to the back:
+        args = self.reorder_args(args)
+        result = super(ArgumentParser, self).parse_args(args)
+        self.clean_parsed_args(result)
+
+        # Adds the build type to the parsed arguments
+        result.build_type = pattern[2]
+        return result
+
+    def reorder_args(self, args):
+        """Reorders arguments by moving all pure arguments to the back."""
         reversed_args = list()
         for arg_names in self.__args:
             arg_options = self.__args[arg_names]
@@ -108,19 +147,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 new_pure_args.append(arg)
                 arg_index += 1
 
-        args = new_optional_args + new_pure_args
-
-        # Removes duplicated values for list objects:
-        result = super(ArgumentParser, self).parse_args(args)
-        for key, value in result._get_kwargs():
-            if isinstance(value, list):
-                new_value = list(set(value))
-                new_value.sort()
-                setattr(result, key, new_value)
-
-        # Adds the build type to the parsed arguments
-        result.build_type = pattern[2]
-        return result
+        return new_optional_args + new_pure_args
 
 
 class ArchiverArgumentParser(ArgumentParser):
@@ -135,12 +162,13 @@ class ArchiverArgumentParser(ArgumentParser):
 
 
 class GccArgumentParser(ArgumentParser):
-    patterns = [(r'^(.*?--mode=compile\s)?\s?gcc\s(.*?)$', r'\2', 'compile'),
+    patterns = [(r'^(.*?--mode=compile\s)?\s*(gcc|"g\+\+")\s(.*?)$', r'\3',
+                 'compile'),
                 (r'^(.*?--mode=link\s)?\s?gcc\s(.*?)$', r'\2', 'link'),
                 (r'^cc\s+(.*)$', r'\1', 'compile'),
                 (r'^libtool:\s+compile:\s+gcc\s+(.*)$', r'\1', 'compile'),
                 (r'^libtool:\s+link:\s+gcc\s+(.*)$', r'\1', 'link'),
-                (r'^libtool\s+(.+)$', r'\1', 'link')]
+                (r'^.*?libtool"?\s+(.+)$', r'\1', 'link')]
 
     library_re = re.compile(r'^(\.{0,2}/)?(\w+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
 
@@ -153,9 +181,9 @@ class GccArgumentParser(ArgumentParser):
         self.add_argument('-f', action='append')
         self.add_argument('-framework', action='append', dest='frameworks')
         self.add_argument('-export-symbols-regex')
-        self.add_argument('-g', action='store_true')
         self.add_argument('-dynamiclib', action='store_true')
         self.add_argument('-D', action='append', dest='defines')
+        self.add_argument('-g', action='append', nargs='*')
         self.add_argument('-l', action='append', dest='libs')
         self.add_argument('-L', action='append', dest='linkers')
         self.add_argument('-iquote', action='append')
@@ -167,11 +195,14 @@ class GccArgumentParser(ArgumentParser):
         self.add_argument('-no-undefined', action='store_true')
         self.add_argument('-o', dest='output')
         self.add_argument('-O')
+        self.add_argument('-pedantic', action='store_true')  # g++
         self.add_argument('-static', action='store_true')
         self.add_argument('-Q')
         self.add_argument('-rpath')
         self.add_argument('-version-info')
+        self.add_argument('-w', action='store_true')  # g++
         self.add_argument('-W')
+        self.add_argument('-x', action='append')  # g++
         self.add_argument('sources', metavar='source', nargs='*')
 
     def parse_args(self, *args, **kwargs):

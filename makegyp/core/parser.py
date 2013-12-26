@@ -459,6 +459,8 @@ class GccParser(MakeParser):
             if hasattr(parsed_args, 'frameworks') and parsed_args.frameworks:
                 frameworks = parsed_args.frameworks
                 target.frameworks = target.frameworks.union(frameworks)
+            # Adds C flags:
+            target.add_cflags(vars(source_args))
 
     def _handle_unknown_args(self, args):
         # Determines the argument type and generates parsed arguments:

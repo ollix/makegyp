@@ -26,6 +26,11 @@ class Formula(object):
     sha256 = None
     dependencies = list()
     default_target_arch = gyp.get_arch()
+    # A dictionary containing the target and path pairs that violate gyp's
+    # "Duplicate basenames in sources section" rule. The specified files will
+    # be renamed on the installation path as well as the corresponded
+    # configuration in the generated GYP file.
+    duplicated_basename_files = dict()
 
     def __init__(self, install_dir):
         self.gyp = collections.OrderedDict()
@@ -193,9 +198,22 @@ class Formula(object):
                             target.pop(keyword)
 
         for target in target_gyp_dicts:
+            target_name = target['target_name']
+
             # Adds direct_dependent_settings to target:
             self.__add_direct_dependent_settings_to_target(target)
 
+            # Renames duplicated basename files:
+            if target_name in self.duplicated_basename_files:
+                duplicated_files = self.duplicated_basename_files[target_name]
+                sources = target['sources']
+                for path in duplicated_files:
+                    sources.remove(path)
+                    new_path = self.__get_new_path_for_duplicated_file(path)
+                    sources.append(new_path)
+                target['sources'].sort()
+
+            # Adds revised target to the gyp dictionary.
             self.gyp['targets'].append(target)
 
     def __download(self):
@@ -271,6 +289,10 @@ class Formula(object):
                 else:
                     raise error
             print 'Generated config file: %s' % dest
+
+    def __get_new_path_for_duplicated_file(self, path):
+        basename, ext = os.path.splitext(path)
+        return '%s_copy%s' % (basename, ext)
 
     def __process(self, log_name, args, pre_process_func=None):
         """Process the args and preserve the output.
@@ -410,7 +432,7 @@ class Formula(object):
         # Copies library source code along generated files to destination:
         shutil.rmtree(self.tmp_package_output_path, True)
         archive_path = os.path.join(self.tmp_dir, os.path.basename(self.url))
-        print 'Copying library source code to %r' % self.install_path
+        print 'Copying library source code to %r' % self.tmp_package_output_path
         try:
             os.mkdir(self.tmp_output_path)
         except OSError as error:
@@ -436,6 +458,22 @@ class Formula(object):
         print 'Post-processing the library...'
         self.post_process(self.tmp_package_output_path)
 
+        # Renames duplicated basename files. The implementation is actully
+        # copying the orignal file to a new path that will be used in the gyp
+        # file.
+        if self.duplicated_basename_files:
+            print 'Rename duplicated basename files...'
+            for original_paths in self.duplicated_basename_files.itervalues():
+                for original_path in original_paths:
+                    new_path = \
+                        self.__get_new_path_for_duplicated_file(original_path)
+                    print 'Renamed: %s => %s' % (original_path, new_path)
+                    path = os.path.join(self.tmp_package_output_path,
+                                        original_path)
+                    new_path = self.__get_new_path_for_duplicated_file(path)
+                    shutil.copyfile(path, new_path)
+
+        print 'Installing library...'
         shutil.rmtree(self.install_path, True)
         shutil.copytree(self.tmp_package_output_path, self.install_path)
 

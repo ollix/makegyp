@@ -133,6 +133,7 @@ convert most libraries to adapt GYP support. You can help! :)
 
 Current working formulas
 -------------------------
+- boost
 - faad2
 - gtest
 - lame

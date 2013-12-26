@@ -29,8 +29,11 @@ def get_os():
 
 
 class Target(object):
-    target_default_keywords = ('defines', 'dependencies', 'include_dirs')
+    target_default_keywords = ('cflags', 'defines', 'dependencies',
+                               'include_dirs')
     library_name_pattern = re.compile(r'^/?(.+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
+    ignored_cflags = ('defines', 'frameworks', 'include_dirs', 'MF', 'MT',
+                      'output', 'sources')
 
     def __init__(self, target_output_name):
         if re.match(self.library_name_pattern, target_output_name):
@@ -42,6 +45,7 @@ class Target(object):
         # Makes sure the name of a library target always starts with "lib".
         if self.type == 'library':
             self.name = 'lib%s' % self.name
+        self.cflags = set()
         self.defines = set()
         self.dependencies = set()  # should be a list of Target objects or str
         self.frameworks = set()
@@ -51,6 +55,22 @@ class Target(object):
 
     def __repr__(self):
         return '<Target: %s>' % self.name
+
+    def add_cflags(self, parsed_args):
+        """Add a dictionary of C flags.
+
+        The specified parsed_args must be a dictionary type.
+        """
+        for key, value in parsed_args.iteritems():
+            if key in self.ignored_cflags or not value:
+                continue
+
+            cflags = '-%s' % key
+            if isinstance(value, str):
+                self.cflags.add(cflags + value)
+            elif isinstance(value, list):
+                for item in value:
+                    self.cflags.add(cflags + item)
 
     def add_dependency_by_path(self, path):
         filename = os.path.basename(path)
@@ -74,6 +94,8 @@ class Target(object):
                 libraries.append('-l%s' % library)
         if self.defines:
             obj['defines'] = sorted(self.defines)
+        if self.cflags:
+            obj['cflags'] = sorted(self.cflags)
         if self.dependencies:
             dependencies = set()
             for dependency in self.dependencies:
