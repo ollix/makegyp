@@ -31,6 +31,10 @@ class Formula(object):
     # be renamed on the installation path as well as the corresponded
     # configuration in the generated GYP file.
     duplicated_basename_files = dict()
+    # A dictionary containing manually added dependencies. The dictionary key
+    # should be a target, and the dictionary value should be a list of
+    # corresponded dependencies to the target.
+    target_dependencies = dict()
 
     def __init__(self, install_dir):
         self.gyp = collections.OrderedDict()
@@ -212,6 +216,17 @@ class Formula(object):
                     new_path = self.__get_new_path_for_duplicated_file(path)
                     sources.append(new_path)
                 target['sources'].sort()
+
+            # Patches target dependencies:
+            if target_name in self.target_dependencies:
+                try:
+                    dependencies = set(target['dependencies'])
+                except KeyError:
+                    dependencies = set()
+
+                for dependency in self.target_dependencies[target_name]:
+                    dependencies.add(dependency)
+                target['dependencies'] = sorted(dependencies)
 
             # Adds revised target to the gyp dictionary.
             self.gyp['targets'].append(target)

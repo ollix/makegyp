@@ -17,6 +17,9 @@ class Boost(formula.Formula):
                             'libs/locale/src/posix/codecvt.cpp',
                             'libs/locale/src/posix/collate.cpp')
     }
+    target_dependencies = {
+        'libboost_filesystem': ('libboost_system',),
+    }
 
     def configure(self):
         system = platform.system()
