@@ -59,20 +59,10 @@ parser = argparse.ArgumentParser(
 )
 subparsers = parser.add_subparsers(title='subcommands')
 
-# Subcommand: create
-parser_create = subparsers.add_parser('create', help='create a formula')
-parser_create.set_defaults(func=create)
-
-#Subcommand: edit
-parser_edit = subparsers.add_parser('edit', help='edit a formula')
-parser_edit.set_defaults(func=edit)
-
 # Subcommand: install
-parser_install = subparsers.add_parser('install', help='install a library')
+parser_install = subparsers.add_parser('install', help='install libraries')
 parser_install.add_argument('-d', '--dest',
-                            help='directory to install the library')
-parser_install.add_argument('-t', '--test', action='store_true',
-                            help='test the building process')
+                            help='directory to install libraries')
 parser_install.add_argument('library_names', metavar='library_name', nargs='*')
 parser_install.set_defaults(func=install)
 
