@@ -62,7 +62,7 @@ class Target(object):
         The specified parsed_args must be a dictionary type.
         """
         for key, value in parsed_args.iteritems():
-            if key in self.ignored_cflags or not value:
+            if key in self.ignored_cflags or key.startswith('_') or not value:
                 continue
 
             cflags = '-%s' % key
@@ -95,7 +95,14 @@ class Target(object):
         if self.defines:
             obj['defines'] = sorted(self.defines)
         if self.cflags:
-            obj['cflags'] = sorted(self.cflags)
+            sorted_cflags = sorted(self.cflags)
+            obj['conditions'] = [
+                ["OS=='linux'", {
+                    'cflags': sorted_cflags,
+                }],
+                ["OS=='mac'", {
+                    'xcode_settings': {'OTHER_CFLAGS': sorted_cflags}
+                }]]
         if self.dependencies:
             dependencies = set()
             for dependency in self.dependencies:
@@ -105,5 +112,11 @@ class Target(object):
                     dependencies.add(dependency)
             obj['dependencies'] = sorted(dependencies)
             obj['export_dependent_settings'] = obj['dependencies']
+
+        # Adds include_dirs to direct dependent settings.
+        obj['direct_dependent_settings'] = collections.OrderedDict()
+        direct_dependent_settings = obj['direct_dependent_settings']
+        if self.include_dirs:
+            direct_dependent_settings['include_dirs'] = obj['include_dirs']
 
         return obj

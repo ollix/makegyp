@@ -80,7 +80,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self.clean_parsed_args(result)
 
         # Adds the build type to the parsed arguments
-        result.build_type = pattern[2]
+        result._build_type = pattern[2]
         return result
 
     def reorder_args(self, args):
@@ -214,7 +214,7 @@ class GccArgumentParser(ArgumentParser):
         if parsed_args is not None:
             if parsed_args.dynamiclib or parsed_args.linkers or \
                len(parsed_args.sources) > 1:
-                parsed_args.build_type = 'link'
+                parsed_args._build_type = 'link'
 
         return parsed_args
 

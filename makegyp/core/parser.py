@@ -472,7 +472,7 @@ class GccParser(MakeParser):
             return  # unknown type
 
         parsed_args = argument_parser.parse_args(args)
-        build_type = parsed_args.build_type
+        build_type = parsed_args._build_type
 
         if build_type == 'compile':
             self._add_compiled_object(parsed_args)

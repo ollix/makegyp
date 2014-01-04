@@ -73,25 +73,6 @@ class Formula(object):
         self.install_dir = os.path.abspath(install_dir)
         self.install_path = os.path.join(self.install_dir, self.name)
 
-    def __add_direct_dependent_settings_to_target(self, target):
-        # Retrieves default include dirs as a set:
-        try:
-            default_include_dirs = self.gyp['target_defaults']['include_dirs']
-        except KeyError:
-            default_include_dirs = set()
-        else:
-            default_include_dirs = set(default_include_dirs)
-        # Retrieves target include dirs as as set:
-        try:
-            target_include_dirs = target['include_dirs']
-        except KeyError:
-            target_include_dirs = set()
-        else:
-            target_include_dirs = set(target_include_dirs)
-        # Merges two sets of include dirs and adds to direct_dependent_settings:
-        include_dirs = sorted(default_include_dirs.union(target_include_dirs))
-        target['direct_dependent_settings'] = {'include_dirs': include_dirs}
-
     def __add_targets_to_gyp(self, targets):
         # Adds target dependencies:
         if self.dependencies:
@@ -136,8 +117,21 @@ class Formula(object):
                         target.libraries.remove(library)
                         target.dependencies.add(dependency)
 
-        # Removes include_dirs pointing to dependencies:
         for target in targets:
+            # Renames duplicated basename files:
+            if target.name in self.duplicated_basename_files:
+                duplicated_files = self.duplicated_basename_files[target.name]
+                for path in duplicated_files:
+                    target.sources.remove(path)
+                    new_path = self.__get_new_path_for_duplicated_file(path)
+                    target.sources.add(new_path)
+
+            # Patches target dependencies:
+            if target.name in self.target_dependencies:
+                for dependency in self.target_dependencies[target.name]:
+                    target.dependencies.add(dependency)
+
+            # Removes include_dirs pointing to dependencies:
             to_removed_include_dirs = set()
             for include_dir in target.include_dirs:
                 if not os.path.isabs(include_dir):
@@ -151,85 +145,20 @@ class Formula(object):
             target.include_dirs = target.include_dirs.difference(
                 to_removed_include_dirs)
 
-        # Extracts target defaults:
-        target_gyp_dicts = [target.gyp_dict() for target in targets]
-        target_defaults = self.gyp['target_defaults']
-        for keyword in gyp.Target.target_default_keywords:
-            # Finds common values for the target default keyword:
-            common_values = None
-            for target in target_gyp_dicts:
-                # Retrieves current values from the target:
-                try:
-                    values = target[keyword]
-                except KeyError:
-                    values = set()
-                else:
-                    values = set(values)
+            # Merges the target to the GYP structure.
+            target_dict = target.gyp_dict()
+            self.gyp['targets'].append(target_dict)
 
-                # Updates common values:
-                if common_values is None:
-                    common_values = values
-                else:
-                    common_values = common_values.intersection(values)
-
-                # Stops searching if there is not common values:
-                if not common_values:
-                    break
-
-            # If there are common values, merge them to top-level target
-            # defaults and remove them from each target:
-            if common_values:
-                # Merges common values into target defaults:
-                try:
-                    values = target_defaults[keyword]
-                except KeyError:
-                    values = set()
-                else:
-                    values = set(values)
-                target_defaults[keyword] = sorted(values.union(common_values))
-
-                # Removes common values from each target:
-                for target in target_gyp_dicts:
-                    try:
-                        values = target[keyword]
-                    except KeyError:
-                        pass
-                    else:
-                        new_values = set(values).difference(common_values)
-                        if new_values:
-                            target[keyword] = sorted(new_values)
-                        else:
-                            target.pop(keyword)
-
-        for target in target_gyp_dicts:
-            target_name = target['target_name']
-
-            # Adds direct_dependent_settings to target:
-            self.__add_direct_dependent_settings_to_target(target)
-
-            # Renames duplicated basename files:
-            if target_name in self.duplicated_basename_files:
-                duplicated_files = self.duplicated_basename_files[target_name]
-                sources = target['sources']
-                for path in duplicated_files:
-                    sources.remove(path)
-                    new_path = self.__get_new_path_for_duplicated_file(path)
-                    sources.append(new_path)
-                target['sources'].sort()
-
-            # Patches target dependencies:
-            if target_name in self.target_dependencies:
-                try:
-                    dependencies = set(target['dependencies'])
-                except KeyError:
-                    dependencies = set()
-
-                for dependency in self.target_dependencies[target_name]:
-                    dependencies.add(dependency)
-                target['dependencies'] = sorted(dependencies)
-
-            # Adds revised target to the gyp dictionary.
-            self.gyp['targets'].append(target)
+            # Patches arch-specific header to direct depednent settings.
+            direct_dependent_settings = target_dict['direct_dependent_settings']
+            dependent_include_dirs = \
+                ['%s/<(OS)/<(target_arch)' % kConfigRootDirectoryName]
+            try:
+                dependent_include_dirs += \
+                    direct_dependent_settings['include_dirs']
+            except KeyError:
+                pass
+            direct_dependent_settings['include_dirs'] = dependent_include_dirs
 
     def __download(self):
         if os.path.isdir(self.tmp_package_root):
