@@ -1,1 +1,9 @@
-openssl
+{
+    'includes': [
+        'target_arch.gypi',
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'openssl',
+    ],
+}

@@ -1,1 +1,8 @@
-lame
+{
+    'includes': [
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'lame',
+    ],
+}

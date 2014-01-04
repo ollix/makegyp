@@ -1,6 +1,6 @@
 {
     "variables": {
-        "target_arch%": "x64"
+        "target_arch%": "x64",
     },
     "target_defaults": {
         "default_configuration": "Debug",

@@ -1,1 +1,8 @@
-mpg123
+{
+    'includes': [
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'mpg123',
+    ],
+}

@@ -1,1 +1,8 @@
-libogg
+{
+    'includes': [
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'libogg',
+    ],
+}

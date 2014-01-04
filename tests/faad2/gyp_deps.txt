@@ -1,1 +1,8 @@
-faad2
+{
+    'includes': [
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'faad2',
+    ],
+}

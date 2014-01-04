@@ -1,1 +1,8 @@
-gtest
+{
+    'includes': [
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'gtest',
+    ],
+}

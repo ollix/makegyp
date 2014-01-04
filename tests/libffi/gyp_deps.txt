@@ -1,1 +1,8 @@
-libffi
+{
+    'includes': [
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'libffi',
+    ],
+}

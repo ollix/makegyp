@@ -1,1 +1,8 @@
-curl
+{
+    'includes': [
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'curl',
+    ],
+}

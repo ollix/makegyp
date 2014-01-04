@@ -36,7 +36,12 @@ class Formula(object):
     # corresponded dependencies to the target.
     target_dependencies = dict()
 
-    def __init__(self, install_dir):
+    def __init__(self, install_dir, include_gyp_files=None):
+        if include_gyp_files is None:
+            self.include_gyp_files = []
+        else:
+            self.include_gyp_files = include_gyp_files
+
         self.gyp = collections.OrderedDict()
 
         # Creates the temporary directory:
@@ -288,6 +293,12 @@ class Formula(object):
         self.gyp.clear()
 
         # Initializes target_defaults:
+        if self.include_gyp_files:
+            self.gyp['includes'] = list()
+            for gyp_file in self.include_gyp_files:
+                gyp_file = os.path.relpath(gyp_file, self.install_path)
+                self.gyp['includes'].append(gyp_file)
+            self.gyp['includes'].sort()
         self.gyp['variables'] = {
             'target_arch%': self.default_target_arch,
         }

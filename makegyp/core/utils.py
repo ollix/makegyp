@@ -36,10 +36,10 @@ def build_target(dirname, library_name, target_name=None):
 
     return os.path.join(library_dir, 'out', 'Debug', product_name)
 
-def get_formula(library_name, dest_dir):
+def get_formula(library_name, *args, **kwargs):
     formula_module = import_module(library_name, [get_formula_root()])
     formula_class = getattr(formula_module, library_name.title())
-    return formula_class(dest_dir)
+    return formula_class(*args, **kwargs)
 
 def get_formula_root():
     return os.path.join(get_package_root(), 'formula')
@@ -64,17 +64,19 @@ def import_module(module_name, search_paths):
     instance.install()
 
 
-def install_formula(library_name, dest_dir, installed_formulas=None):
+def install_formula(library_name, dest_dir, installed_formulas=None,
+                    *args, **kwargs):
     if installed_formulas is None:
         installed_formulas = set()
 
     if library_name in installed_formulas:
         return
 
-    formula = get_formula(library_name, dest_dir)
+    formula = get_formula(library_name, dest_dir, *args, **kwargs)
     if formula.dependencies:
         for depencency in formula.dependencies:
-            install_formula(depencency, dest_dir, installed_formulas)
+            install_formula(depencency, dest_dir, installed_formulas,
+                            *args, **kwargs)
 
     formula.install()
     print '#' * 3

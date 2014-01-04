@@ -12,7 +12,13 @@ def edit(args):
     print 'edit:', args
 
 def install(args):
-    library_names = set(args.library_names)
+    formulas = set(args.formulas)
+
+    # Initializes included gyp files.
+    include_gyp_files = set()
+    if args.includes is not None:
+        for gyp_file in args.includes:
+            include_gyp_files.add(os.path.abspath(gyp_file))
 
     # Determines the current directory:
     curdir = os.path.abspath(os.path.curdir)
@@ -21,14 +27,19 @@ def install(args):
     gyp_deps_path = os.path.join(curdir, 'gyp_deps.txt')
     if os.path.isfile(gyp_deps_path):
         gyp_deps_file = file(gyp_deps_path, 'r')
-        for line in gyp_deps_file:
-            library_name = line.split('#', 1)[0].strip()
-            if library_name:
-                library_names.add(library_name)
+        config = eval(gyp_deps_file.read())
         gyp_deps_file.close()
+        if 'dependencies' in config and \
+           isinstance(config['dependencies'], list):
+            for dependency in config['dependencies']:
+                formulas.add(dependency)
+        if 'includes' in config and isinstance(config['includes'], list):
+            base_dir = os.path.dirname(os.path.abspath(gyp_deps_path))
+            for include in config['includes']:
+                include_gyp_files.add(os.path.join(base_dir, include))
 
-    if not library_names:
-        print 'No library is specified. You can specify libraries as ' \
+    if not formulas:
+        print 'No formula is specified. You can specify formulas as ' \
         'arguments or list them in the `gyp_deps.txt` file at the current ' \
         'directory.'
         exit(1)
@@ -44,12 +55,13 @@ def install(args):
         if not error.errno == 17:
             raise error
 
-    for library_name in library_names:
+    for formula in formulas:
         os.chdir(curdir)
-        utils.install_formula(library_name, dest_dir)
+        utils.install_formula(formula, dest_dir,
+                              include_gyp_files=include_gyp_files)
 
-    print '%r %s installed at %r' % (sorted(library_names),
-                                     'is' if len(library_names) == 1 else 'are',
+    print '%r %s installed at %r' % (sorted(formulas),
+                                     'is' if len(formulas) == 1 else 'are',
                                      dest_dir)
 
 
@@ -63,7 +75,10 @@ subparsers = parser.add_subparsers(title='subcommands')
 parser_install = subparsers.add_parser('install', help='install libraries')
 parser_install.add_argument('-d', '--dest',
                             help='directory to install libraries')
-parser_install.add_argument('library_names', metavar='library_name', nargs='*')
+parser_install.add_argument('-i', '--include', dest='includes', action='append',
+                            metavar='gypi', help='include other gyp files in ' \
+                                                 'generated gyp file')
+parser_install.add_argument('formulas', metavar='formula', nargs='*')
 parser_install.set_defaults(func=install)
 
 

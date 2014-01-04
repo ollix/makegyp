@@ -1,1 +1,8 @@
-zlib
+{
+    'includes': [
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'zlib',
+    ],
+}

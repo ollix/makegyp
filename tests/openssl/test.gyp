@@ -1,10 +1,6 @@
 {
-    "target_defaults": {
-        'variables': {
-            'target_arch': 'ia32',
-        },
-    },
     'includes': [
+        'target_arch.gypi',
         '../common.gypi',
     ],
     'targets': [

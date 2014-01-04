@@ -1,1 +1,8 @@
-libvorbis
+{
+    'includes': [
+        '../common.gypi'
+    ],
+    'dependencies': [
+        'libvorbis',
+    ],
+}
