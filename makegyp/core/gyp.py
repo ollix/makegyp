@@ -32,8 +32,8 @@ class Target(object):
     target_default_keywords = ('cflags', 'defines', 'dependencies',
                                'include_dirs')
     library_name_pattern = re.compile(r'^/?(.+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
-    ignored_cflags = ('defines', 'frameworks', 'include_dirs', 'MF', 'MT',
-                      'output', 'sources')
+    ignored_cflags = ('arch', 'defines', 'frameworks', 'include_dirs', 'MF',
+                      'MT', 'output', 'sources')
 
     def __init__(self, target_output_name):
         if re.match(self.library_name_pattern, target_output_name):
