@@ -141,4 +141,6 @@ Current working formulas
 - libogg
 - libvorbis
 - mpg123
+- openssl (32-bit only)
+- sqlite
 - zlib
