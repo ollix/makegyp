@@ -19,6 +19,42 @@ class ArgumentParser(argparse.ArgumentParser):
 
         super(ArgumentParser, self).__init__(*args, **kwargs)
 
+    def __convert_arg_string_to_args(self, arg_string):
+        arg_string = arg_string.replace('\\ ', ' ')  # Replaces '\ ' to ' '
+
+        # Replaces '\"' to '"' and removes single '"'.
+        arg_string = arg_string.replace('\\\"', '$$$')
+        arg_string = arg_string.replace("\"", "")
+        arg_string = arg_string.replace('$$$', '"')
+
+        # Impelments str.split() but consider the situations where "123 456"
+        # is treated as a single string and should not be splitted.
+        args = []
+        arg = ""
+        previous_char_is_space = False
+        spaces = '\ \t'
+        valid_delimiter = "\"'"
+        delimiter = ""
+        for char in arg_string:
+            if char in spaces:
+                if previous_char_is_space:
+                    continue
+                if delimiter != "":
+                    arg += char
+                    continue
+                if arg:
+                    args.append(arg)
+                    arg = ""
+                previous_char_is_space = True
+            else:
+                arg += char
+                if char in valid_delimiter:
+                    delimiter = "" if delimiter else char
+                previous_char_is_space = False
+        if arg:
+            args.append(arg)
+        return args
+
     def add_argument(self, *args, **kwargs):
         super(ArgumentParser, self).add_argument(*args, **kwargs)
         self.__args[args] = kwargs
@@ -69,7 +105,8 @@ class ArgumentParser(argparse.ArgumentParser):
         arg_string = arg_string.strip()
         pattern = self.match_pattern(arg_string)
         if pattern:
-            args = re.sub(pattern[0], pattern[1], arg_string).split()
+            arg_string = re.sub(pattern[0], pattern[1], arg_string)
+            args = self.__convert_arg_string_to_args(arg_string)
         else:
             print '%r cannot parse argument %r' % (self.__class__.__name,
                                                    arg_string)
