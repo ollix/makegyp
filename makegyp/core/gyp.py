@@ -29,7 +29,7 @@ def get_os():
 
 
 class Target(object):
-    library_name_pattern = re.compile(r'^/?(.+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
+    library_name_pattern = re.compile(r'^/?(.+?/)*(lib)(.+?)\.(a|la|.*dylib)$')
     ignored_cflags = ('arch', 'defines', 'frameworks', 'include_dirs', 'MF',
                       'MT', 'output', 'sources')
 

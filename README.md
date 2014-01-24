@@ -133,14 +133,15 @@ convert most libraries to adapt GYP support. You can help! :)
 
 Current working formulas
 -------------------------
-- boost
-- faad2
-- gtest
-- lame
-- libffi
-- libogg
-- libvorbis
-- mpg123
-- openssl (32-bit only)
-- sqlite
-- zlib
+- [boost](http://www.boost.org)
+- [faad2](http://www.audiocoding.com/faad2.html)
+- [gtest](https://code.google.com/p/googletest/)
+- [lame](http://lame.sourceforge.net)
+- [libffi](https://sourceware.org/libffi/)
+- [libogg](http://xiph.org/ogg/)
+- [libvorbis](http://xiph.org/vorbis/)
+- [mpg123](http://www.mpg123.de)
+- [openssl](http://www.openssl.org) (32-bit only)
+- [sqlite](http://www.sqlite.org)
+- [yamlcpp](https://code.google.com/p/yaml-cpp/)
+- [zlib](http://www.zlib.net)

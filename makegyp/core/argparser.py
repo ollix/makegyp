@@ -202,10 +202,11 @@ class GccArgumentParser(ArgumentParser):
     patterns = [(r'^(.*?--mode=compile\s)?\s*(gcc|"g\+\+")\s(.*?)$', r'\3',
                  'compile'),
                 (r'^(.*?--mode=link\s)?\s?gcc\s(.*?)$', r'\2', 'link'),
-                (r'^cc\s+(.*)$', r'\1', 'compile'),
+                (r'^cc\s+(.*)$', r'\1', 'compile'),  # cc
                 (r'^libtool:\s+compile:\s+gcc\s+(.*)$', r'\1', 'compile'),
                 (r'^libtool:\s+link:\s+gcc\s+(.*)$', r'\1', 'link'),
-                (r'^.*?libtool"?\s+(.+)$', r'\1', 'link')]
+                (r'^.*?libtool"?\s+(.+)$', r'\1', 'link'),
+                (r'^([\w\/]+?)?c\+\+\s+(.+)$', r'\2','link')]  # c++
 
     library_re = re.compile(r'^(\.{0,2}/)?(\w+?/)*(lib)(\w+?)\.(a|la|.*dylib)$')
 

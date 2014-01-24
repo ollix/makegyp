@@ -177,15 +177,16 @@ class MakeParser(Parser):
 
 class CmakeParser(Parser):
     archiver_argument_parser = argparser.ArchiverArgumentParser()
+    gcc_argument_parser = argparser.GccArgumentParser()
 
     target_directories_path = os.path.join('CMakeFiles',
                                            'TargetDirectories.txt')
 
     # Regular expression patterns:
-    source_re = re.compile(r'^CMakeFiles/\w+\.dir/(.*)\.\w+\s?$')
+    source_re = re.compile(r'^CMakeFiles/.+\.dir/(.*)\.\w+\s?$')
     cmake_set_start_re = re.compile(r'^SET\((\w+)\s*$')
     cmake_set_end_re = re.compile(r'^\s*\)\s*$')
-    cmake_target_path_re = re.compile(r'^(.+?/CMakeFiles/\w+\.dir).*?$')
+    cmake_target_path_re = re.compile(r'^(.+?/CMakeFiles/.+\.dir).*?$')
 
     def __init__(self, *args, **kwargs):
         super(CmakeParser, self).__init__(*args, **kwargs)
@@ -274,6 +275,19 @@ class CmakeParser(Parser):
         return list()
 
     def __get_link_info(self, target_path):
+        """Inspects the link.txt file for link info.
+
+        This method inspects the link.txt file and iterate each line in the
+        file to find out linked source files and the target name.
+
+        It returns the Namespace() object returned by an ArgumentParser. It
+        includes a lift of 'sources' indicating the source files and the
+        'output' indicating the target name.
+
+        The paths in 'sources' was revised by removing cmake-specific directory
+        and prefixing the actual target directory to generate a real pate where
+        the source file is.
+        """
         path = self.__get_root_target_path(target_path)
         if path is None:
             return None
@@ -287,15 +301,24 @@ class CmakeParser(Parser):
             if self.archiver_argument_parser.match_pattern(line):
                 parsed_args = self.archiver_argument_parser.parse_args(line)
                 break
+            # The link may be done through gcc argumnet parser.
+            if self.gcc_argument_parser.match_pattern(line):
+                parsed_args = self.gcc_argument_parser.parse_args(line)
+                break
         else:
-            print 'Failed to find Archiver arguments at %r' % path
+            print 'Failed to find source files at %r' % path
             exit(1)
         link_file.close()
 
         # Converts built source paths to original source paths.
         revised_sources = list()
+        # Determines the directory containing parsed source files.
+        source_directory = os.path.join(target_path, '../../');
         for source in parsed_args.sources:
-            revised_sources.append(re.sub(self.source_re, r'\1', source))
+            if (self.source_re.match(source)):
+                path = os.path.join(source_directory,
+                                    re.sub(self.source_re, r'\1', source))
+                revised_sources.append(os.path.relpath(path))
         parsed_args.sources = revised_sources
 
         return parsed_args
@@ -309,7 +332,8 @@ class CmakeParser(Parser):
         target_directories_file.close()
 
         # Iterates each target directory to gather target info:
-        for target_directory in target_directories.split('\n'):
+        for target_directory in target_directories.splitlines():
+            target_directory = target_directory.strip()
             if not target_directory:
                 continue
             target = self.__get_target(target_directory)
