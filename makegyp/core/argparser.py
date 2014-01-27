@@ -218,9 +218,11 @@ class GccArgumentParser(ArgumentParser):
         self.add_argument('-current_version')
         self.add_argument('-f', action='append')
         self.add_argument('-framework', action='append', dest='frameworks')
+        self.add_argument('-export-dynamic', action='store_true')
         self.add_argument('-export-symbols-regex')
         self.add_argument('-dynamiclib', action='store_true')
         self.add_argument('-D', action='append', dest='defines')
+        self.add_argument('-E', action='store_true')
         self.add_argument('-g', action='append', nargs='*')
         self.add_argument('-l', action='append', dest='libs')
         self.add_argument('-L', action='append', dest='linkers')
@@ -238,6 +240,7 @@ class GccArgumentParser(ArgumentParser):
         self.add_argument('-Q')
         self.add_argument('-rpath')
         self.add_argument('-version-info')
+        self.add_argument('-version-number')
         self.add_argument('-w', action='store_true')  # g++
         self.add_argument('-W')
         self.add_argument('-x', action='append')  # g++

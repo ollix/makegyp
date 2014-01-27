@@ -24,13 +24,23 @@ class Formula(object):
     parser = None
     url = None
     sha256 = None
+    # A list of manually specified header files that should be copied to the
+    # gyp_config directory.
+    config_files = list()
+    # A list of dependent formulas. The dependent target name will be
+    # incorporated with the generated GYP file.
     dependencies = list()
+    # The default target archtecture that specified in the GYP file.
     default_target_arch = gyp.get_arch()
     # A dictionary containing the target and path pairs that violate gyp's
     # "Duplicate basenames in sources section" rule. The specified files will
     # be renamed on the installation path as well as the corresponded
     # configuration in the generated GYP file.
     duplicated_basename_files = dict()
+    # A dictionary containing manually added include dirs that will be added to
+    # the generated GYP file. The key represents the target name and the value
+    # is a list of directories that should be included.
+    include_dirs = dict()
     # A dictionary containing manually added dependencies. The dictionary key
     # should be a target, and the dictionary value should be a list of
     # corresponded dependencies to the target.
@@ -136,6 +146,11 @@ class Formula(object):
                 for dependency in self.target_dependencies[target.name]:
                     target.dependencies.add(dependency)
 
+            # Added manually specified include_dirs.
+            if target.name in self.include_dirs:
+                target.include_dirs = target.include_dirs.union(
+                    self.include_dirs[target.name])
+
             # Removes include_dirs pointing to dependencies:
             to_removed_include_dirs = set()
             for include_dir in target.include_dirs:
@@ -225,7 +240,8 @@ class Formula(object):
                 raise error
 
         # Copies each generated config file:
-        for config in self.parser.get_config_files(output):
+        config_files = self.parser.get_config_files(output) + self.config_files
+        for config in config_files:
             src = os.path.join(self.tmp_package_root, config)
             dest = os.path.join(config_dir, os.path.basename(config))
 

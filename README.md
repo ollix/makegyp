@@ -37,28 +37,7 @@ Try it!
 
     pip install git+git://github.com/olliwang/makegyp.git
 
-Type *mkgyp.py* in shell to see if it works:
-
-    $ mkgyp.py
-    usage: mkgyp.py [-h] {create,edit,install} ... library_name
-
-    Generates existing C or C++ library with GYP support.
-
-    positional arguments:
-      library_name
-
-    optional arguments:
-      -h, --help            show this help message and exit
-
-    subcommands:
-      {create,edit,install}
-        create              create a formula
-        edit                edit a formula
-        install             install a library
-
-Currently only the *install* subcommand is functional. Now create a new
-directory and switch to it. Then install the [LAME](http://lame.sourceforge.net)
-library by simply run:
+Now create a new directory and switch to it. You can simply install the [LAME](http://lame.sourceforge.net) library one command:
 
     $mkgyp.py install lame
 
@@ -78,9 +57,9 @@ library by simply run:
     - library::gyp_deps/lame-3.99.5/lame.gyp:libmp3lame
 
 That's it. Now the *LAME* library should be installed as a module in the auto
-generated *gyp_deps* directory. You can add
-*gyp_deps/lame-3.99.5/lame.gyp:libmp3lame* to the target's *dependencies*
-field in your GYP file and write a simple program to test it.
+generated *gyp_deps* directory. You can add *gyp_deps/lame/lame.gyp:libmp3lame*
+to the target's *dependencies* field in your GYP file and write a simple
+program to test it.
 
     #include <stdio.h>
     #include "lame.h"
@@ -90,7 +69,7 @@ field in your GYP file and write a simple program to test it.
         return 0;
     }
 
-Your GYP file should look something like this:
+Write a GYP file for your test problem like this:
 
     {
         "target_defaults": {
@@ -108,7 +87,7 @@ Your GYP file should look something like this:
                     'main.c',
                 ],
                 'dependencies': [
-                    'gyp_deps/lame-3.99.5/lame.gyp:libmp3lame',
+                    'gyp_deps/lame/lame.gyp:libmp3lame',
                 ],
             },
         ],
@@ -128,8 +107,13 @@ It works!
 
 What's Next?
 ------------
-I'm going to support more libraries and improve the parsers to be able to
-convert most libraries to adapt GYP support. You can help! :)
+I'm going to support more libraries for my needs and the parsers will be
+improved as well to be able to support more libraries. If you can't find the
+library you need in the supported list below. You can also write formula for
+your needs. You may want to check the "tests" directory to get the idea how
+to use makegyp to install all dependent library at once through the
+gyp_deps.txt file. If you have such file, all you have to do is run
+`mkgyp install` in the same directory.
 
 Current working formulas
 -------------------------
@@ -140,6 +124,7 @@ Current working formulas
 - [libffi](https://sourceware.org/libffi/)
 - [libogg](http://xiph.org/ogg/)
 - [libvorbis](http://xiph.org/vorbis/)
+- [libpng](http://www.libpng.org/pub/png/libpng.html)
 - [mpg123](http://www.mpg123.de)
 - [openssl](http://www.openssl.org) (32-bit only)
 - [sqlite](http://www.sqlite.org)

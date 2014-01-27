@@ -45,6 +45,15 @@ class MakeParser(Parser):
 
     object_filename_exts = ('o', 'lo')
 
+    def __init__(self, ignored_objects=None, *args, **kwargs):
+        """Initializes the parser for make build tool.
+
+        ignored_objects: a list of tuple contains found compiled object to
+            ignore. Currently only used in _add_compiled_object().
+        """
+        self.ignored_objects = ignored_objects if ignored_objects else list()
+        super(MakeParser, self).__init__(*args, **kwargs)
+
     def _get_object_key(self, object_path):
         return re.sub(self.object_key_re, r'\2', object_path)
 
@@ -154,8 +163,10 @@ class MakeParser(Parser):
         self.targets = list()
         self.compiled_objects = dict()
 
+        line_head = ''  # caches line ends with '\'
         for line in make_output.split('\n'):
-            line = line.strip()
+            line = line_head + line.strip()
+            line_head = ''
             arg_type = self._get_arg_type(line)
             if arg_type == 'start_make':
                 self._handle_start_make_args(line)
@@ -169,6 +180,9 @@ class MakeParser(Parser):
                 # Removes conditional expressions:
                 if re.match(self.trim_re, line):
                     line = re.sub(self.trim_re, r'\2', line)
+                if line.endswith('\\'):
+                    line_head = line[:-1]
+                    continue
 
                 self._handle_unknown_args(line)
 
@@ -366,6 +380,8 @@ class GccParser(MakeParser):
         # Determines the current directory by checking if the source exists:
         source = parsed_args.sources[0]
         current_directory = self.current_directory
+        if (current_directory, source) in self.ignored_objects:
+            return
         while True:
             source_path = os.path.join(current_directory, source)
             source_path = os.path.relpath(source_path)
