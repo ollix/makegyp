@@ -56,7 +56,7 @@ setup(
     author_email='olliwang@ollix.com',
     license='GPLv3',
     packages=packages,
-    scripts=['makegyp/bin/mkgyp.py'],
+    scripts=['makegyp/bin/mkgyp'],
     classifiers=[
         'Development Status :: 3 - Aplha',
         'Intended Audience :: Developers',

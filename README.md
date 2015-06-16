@@ -39,7 +39,7 @@ Try it!
 
 Now create a new directory and switch to it. You can simply install the [LAME](http://lame.sourceforge.net) library one command:
 
-    $mkgyp.py install lame
+    $mkgyp install lame
 
     Created 'gyp_deps' directory.
     Installing lame...
