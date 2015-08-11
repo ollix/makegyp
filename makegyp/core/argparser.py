@@ -220,6 +220,7 @@ class GccArgumentParser(ArgumentParser):
         self.add_argument('-framework', action='append', dest='frameworks')
         self.add_argument('-export-dynamic', action='store_true')
         self.add_argument('-export-symbols-regex')
+        self.add_argument('-dynamic', action='store_true')
         self.add_argument('-dynamiclib', action='store_true')
         self.add_argument('-D', action='append', dest='defines')
         self.add_argument('-E', action='store_true')

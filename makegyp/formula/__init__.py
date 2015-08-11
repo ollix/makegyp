@@ -284,6 +284,7 @@ class Formula(object):
                 # It's ok to reuse the log
                 needs_to_process = False
                 output = log_file.read()
+                print 'Use cached build log: %s' % log_file_path
             log_file.close()
 
         if needs_to_process:
@@ -291,12 +292,20 @@ class Formula(object):
                 pre_process_func()
 
             try:
-                output = subprocess.check_output(args, shell=True)
+                process = subprocess.Popen(args, stdout=subprocess.PIPE,
+                                           shell=True)
             except subprocess.CalledProcessError as e:
                 print 'Failed to process the formula: %s' % args
                 exit(1)
 
-            # Preserves the output for debug and reuse:
+            output = list()
+            for line in iter(process.stdout.readline, b''):
+                print line,
+                output.append(line)
+            process.stdout.close()
+            process.wait()
+            output = ''.join(output)
+
             log_file = open(log_file_path, 'w')
             log_file.write(self.identifier)
             log_file.write(args_str)
