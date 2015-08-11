@@ -89,6 +89,7 @@ class Formula(object):
         self.install_path = os.path.join(self.install_dir, self.name)
 
     def __add_targets_to_gyp(self, targets):
+        targets = sorted(targets, key=gyp.Target.name)
         # Adds target dependencies:
         if self.dependencies:
             dependencies = dict()

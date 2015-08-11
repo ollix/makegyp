@@ -97,10 +97,8 @@ class Target(object):
             obj['conditions'] = [
                 ["OS=='linux'", {
                     'cflags': sorted_cflags,
-                }],
-                ["OS=='mac'", {
-                    'xcode_settings': {'OTHER_CFLAGS': sorted_cflags}
                 }]]
+            obj['xcode_settings'] = {'OTHER_CFLAGS': sorted_cflags}
         if self.dependencies:
             dependencies = set()
             for dependency in self.dependencies:
@@ -118,3 +116,6 @@ class Target(object):
             direct_dependent_settings['include_dirs'] = obj['include_dirs']
 
         return obj
+
+    def name(self):
+        return self.name
