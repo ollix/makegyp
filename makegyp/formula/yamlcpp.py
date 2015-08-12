@@ -8,7 +8,7 @@ class Yamlcpp(formula.Formula):
     sha256 = '3e7c9052b43d987d41819a203d97fc45de4eed3ec67e0fdb14265c3d11046f06'
     dependencies = ['boost']
     target_dependencies = {
-        'libyaml-cpp': ('../boost/boost.gyp:libboost_headers',),
+        'libyaml-cpp': ('boost::libboost_headers',),
     }
 
     def configure(self):

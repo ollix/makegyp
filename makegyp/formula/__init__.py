@@ -46,7 +46,9 @@ class Formula(object):
     # corresponded dependencies to the target.
     target_dependencies = dict()
 
-    def __init__(self, install_dir, include_gyp_files=None):
+    def __init__(self, install_dir, gypfile_prefix, include_gyp_files=None):
+        self.gypfile_prefix = gypfile_prefix
+
         if include_gyp_files is None:
             self.include_gyp_files = []
         else:
@@ -105,8 +107,9 @@ class Formula(object):
                         if not os.path.isdir(dependency_dir):
                             continue
 
-                        gyp_file_path = os.path.join(dependency_dir,
-                                                     '%s.gyp' % dependency)
+                        gyp_file_path = os.path.join(
+                            dependency_dir,
+                            '%s%s.gyp' % (self.gypfile_prefix, dependency))
                         if not os.path.isfile(gyp_file_path):
                             continue
 
@@ -120,8 +123,9 @@ class Formula(object):
 
                         library_target_name = 'lib%s' % library
                         if library_target_name in target_names:
-                            dependency = '../%s/%s.gyp:%s' % \
-                                (dependency, dependency, library_target_name)
+                            dependency = '../%s/%s%s.gyp:%s' % \
+                                (dependency, self.gypfile_prefix, dependency,
+                                 library_target_name)
                             dependencies[library] = dependency
                             break
                     else:
@@ -145,6 +149,13 @@ class Formula(object):
             # Patches target dependencies:
             if target.name in self.target_dependencies:
                 for dependency in self.target_dependencies[target.name]:
+                    try:
+                        library_name, target_name = dependency.split('::', 1)
+                        dependency = '../%s/%s%s.gyp:%s' % \
+                                     (library_name, self.gypfile_prefix,
+                                      library_name, target_name)
+                    except ValueError:
+                        pass
                     target.dependencies.add(dependency)
 
             # Added manually specified include_dirs.
@@ -402,7 +413,7 @@ class Formula(object):
         os.chdir(curdir)
 
         # Generates the GYP file:
-        gyp_filename = "%s.gyp" % self.name
+        gyp_filename = "%s%s.gyp" % (self.gypfile_prefix, self.name)
         gyp_file_path = os.path.join(self.tmp_package_root, gyp_filename)
         gyp_file = open(gyp_file_path, "w")
         gyp_file.write('# makegyp: %s\n' % self.package_name)

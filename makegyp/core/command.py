@@ -57,7 +57,7 @@ def install(args):
 
     for formula in formulas:
         os.chdir(curdir)
-        utils.install_formula(formula, dest_dir,
+        utils.install_formula(formula, dest_dir, args.prefix,
                               include_gyp_files=include_gyp_files)
 
     print '%r %s installed at %r' % (sorted(formulas),
@@ -78,6 +78,8 @@ parser_install.add_argument('-d', '--dest',
 parser_install.add_argument('-i', '--include', dest='includes', action='append',
                             metavar='gypi', help='include other gyp files in ' \
                                                  'generated gyp file')
+parser_install.add_argument('-p', '--prefix', dest='prefix', default='',
+                            help='gyp file prefix')
 parser_install.add_argument('formulas', metavar='formula', nargs='*')
 parser_install.set_defaults(func=install)
 
