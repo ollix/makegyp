@@ -8,9 +8,9 @@ from makegyp.core import parser
 
 class Boost(formula.Formula):
     parser = parser.GccParser()
-    url = 'http://downloads.sourceforge.net/project/boost/boost/1.55.0/' \
-          'boost_1_55_0.tar.gz'
-    sha256 = '19c4305cd6669f2216260258802a7abc73c1624758294b2cad209d45cc13a767'
+    url = 'http://downloads.sourceforge.net/project/boost/boost/1.59.0/' \
+          'boost_1_59_0.tar.gz'
+    sha256 = '47f11c8844e579d02691a607fbd32540104a9ac7a2534a8ddaef50daf502baac'
     duplicated_basename_files = {
         'libboost_locale': ('libs/locale/src/posix/converter.cpp',
                             'libs/locale/src/posix/numeric.cpp',
