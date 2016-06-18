@@ -7,8 +7,9 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
-import urllib2
-import urlparse
+import urllib
+import urllib.parse
+import urllib.request
 
 from makegyp.core import archive
 from makegyp.core import gyp
@@ -113,7 +114,7 @@ class Formula(object):
                         if not os.path.isfile(gyp_file_path):
                             continue
 
-                        gyp_file = file(gyp_file_path, 'r')
+                        gyp_file = open(gyp_file_path, 'r')
                         gyp_file.readline()  # skips comment
                         dependency_gyp = json.loads(gyp_file.read())
                         gyp_file.close()
@@ -194,25 +195,26 @@ class Formula(object):
 
     def __download(self):
         if os.path.isdir(self.tmp_package_root):
-            print 'Use cached package at \'%s\'' % self.tmp_package_root
+            print('Use cached package at \'%s\'' % self.tmp_package_root)
             return
 
         filename = os.path.basename(self.url)
         file_path = os.path.join(self.tmp_dir, filename)
         if not os.path.isfile(file_path):
-            print 'Downloading %s' % self.url
+            print('Downloading %s' % self.url)
 
-            url_info = urlparse.urlparse(self.url)
+            url_info = urllib.parse.urlparse(self.url)
             local_package = open(file_path, 'wb')
             failed = False
 
             if url_info.scheme in ('http', 'https'):
-                package = urllib2.urlopen(self.url)
+                request = urllib.request.Request(self.url)
+                package = urllib.request.urlopen(request)
                 if package.getcode() == 200:
                     local_package.write(package.read())
                 else:
-                    print 'Failed to download \'%s\' (error code: %d)' % \
-                          (filename, package.getcode())
+                    print('Failed to download \'%s\' (error code: %d)' %
+                          (filename, package.getcode()))
                     failed = True
             elif url_info.scheme == 'ftp':
                 ftp = ftplib.FTP(url_info.netloc)
@@ -220,7 +222,7 @@ class Formula(object):
                 ftp.retrbinary('RETR %s' % url_info.path, local_package.write)
                 ftp.quit()
             else:
-                print 'URL is not supported: %s' % self.url
+                print('URL is not supported: %s' % self.url)
                 failed = True
 
             local_package.close()
@@ -230,12 +232,12 @@ class Formula(object):
         # Checks checksum:
         local_package = open(file_path, 'rb')
         if hashlib.sha256(local_package.read()).hexdigest() != self.sha256:
-            print 'SHA256 checksum not matched: %s %s' % \
-                (self.sha256, file_path)
+            print('SHA256 checksum not matched: %s %s' %
+                  (self.sha256, file_path))
             exit(1)
 
         # Extracts the archive:
-        print 'Extracting archive \'%s\'' % file_path
+        print('Extracting archive \'%s\'' % file_path)
         archive.extract_archive(file_path)
 
     def __generate_config_files(self):
@@ -261,11 +263,11 @@ class Formula(object):
                 shutil.copyfile(src, dest)
             except IOError as error:
                 if error.errno == 2:
-                    print 'Failed to copy config file: %r' % config
+                    print('Failed to copy config file: %r' % config)
                     exit(1)
                 else:
                     raise error
-            print 'Generated config file: %s' % dest
+            print('Generated config file: %s' % dest)
 
     def __get_new_path_for_duplicated_file(self, path):
         basename, ext = os.path.splitext(path)
@@ -279,7 +281,7 @@ class Formula(object):
         log_file_path = os.path.join(self.tmp_package_root, log_name)
 
         if not hasattr(self, 'identifier'):
-            self.identifier = hashlib.sha256(self.configure_args).hexdigest()
+            self.identifier = hashlib.sha256(self.configure_args.encode('utf-8')).hexdigest()
             self.identifier = '# %s\n' % self.identifier
 
         args_string = args
@@ -296,7 +298,7 @@ class Formula(object):
                 # It's ok to reuse the log
                 needs_to_process = False
                 output = log_file.read()
-                print 'Use cached build log: %s' % log_file_path
+                print('Use cached build log:', log_file_path)
             log_file.close()
 
         if needs_to_process:
@@ -307,16 +309,17 @@ class Formula(object):
                 process = subprocess.Popen(args, stdout=subprocess.PIPE,
                                            shell=True)
             except subprocess.CalledProcessError as e:
-                print 'Failed to process the formula: %s' % args
+                print('Failed to process the formula:', args)
                 exit(1)
 
             output = list()
             for line in iter(process.stdout.readline, b''):
-                print line,
+                line = line.decode('utf-8').strip()
+                print(line)
                 output.append(line)
             process.stdout.close()
             process.wait()
-            output = ''.join(output)
+            output = '\n'.join(output)
 
             log_file = open(log_file_path, 'w')
             log_file.write(self.identifier)
@@ -387,14 +390,14 @@ class Formula(object):
         # Remembers the current directory:
         curdir = os.path.abspath(os.path.curdir)
 
-        print 'Installing %s...' % self.name
+        print('Installing %s...' % self.name)
         self.__reset_gyp()
         self.__download()
         os.chdir(self.tmp_package_root)
-        print 'Configuring...'
+        print('Configuring...')
         self.configure_args = self.configure()
         self.__generate_config_files()
-        print 'Making...'
+        print('Making...')
         # Tries to clean built files before actually do make:
         def clean_make():
             try:
@@ -405,7 +408,7 @@ class Formula(object):
         output = self.__process('makegyp_make_log', self.make(),
                                 pre_process_func=clean_make)
 
-        print 'Generating gyp file...'
+        print('Generating gyp file...')
         targets = self.parser.get_targets(output)
         self.__add_targets_to_gyp(targets)
 
@@ -424,7 +427,7 @@ class Formula(object):
         # Copies library source code along generated files to destination:
         shutil.rmtree(self.tmp_package_output_path, True)
         archive_path = os.path.join(self.tmp_dir, os.path.basename(self.url))
-        print 'Copying library source code to %r' % self.tmp_package_output_path
+        print('Copying library source code to %r' % self.tmp_package_output_path)
         try:
             os.mkdir(self.tmp_output_path)
         except OSError as error:
@@ -438,42 +441,42 @@ class Formula(object):
         # Copies config files:
         config_dest = os.path.join(self.tmp_package_output_path,
                                    kConfigRootDirectoryName)
-        print 'Copying config files to %r' % config_dest
+        print('Copying config files to %r' % config_dest)
         shutil.copytree(self.config_root, config_dest)
 
         # Copies gyp file:
         gyp_dest = os.path.join(self.tmp_package_output_path, gyp_filename)
-        print 'Copying gyp file to %r' % gyp_dest
+        print('Copying gyp file to %r' % gyp_dest)
         shutil.copyfile(gyp_file_path, gyp_dest)
 
         # Post-precoesses the installed library:
-        print 'Post-processing the library...'
+        print('Post-processing the library...')
         self.post_process(self.tmp_package_output_path)
 
         # Renames duplicated basename files. The implementation is actully
         # copying the orignal file to a new path that will be used in the gyp
         # file.
         if self.duplicated_basename_files:
-            print 'Rename duplicated basename files...'
-            for original_paths in self.duplicated_basename_files.itervalues():
+            print('Rename duplicated basename files...')
+            for original_paths in self.duplicated_basename_files.values():
                 for original_path in original_paths:
                     new_path = \
                         self.__get_new_path_for_duplicated_file(original_path)
-                    print 'Renamed: %s => %s' % (original_path, new_path)
+                    print('Renamed: %s => %s' % (original_path, new_path))
                     path = os.path.join(self.tmp_package_output_path,
                                         original_path)
                     new_path = self.__get_new_path_for_duplicated_file(path)
                     shutil.copyfile(path, new_path)
 
-        print 'Installing library...'
+        print('Installing library...')
         shutil.rmtree(self.install_path, True)
         shutil.copytree(self.tmp_package_output_path, self.install_path)
 
-        print 'Installed %r to %r' % (self.name, self.install_path)
+        print('Installed %r to %r' % (self.name, self.install_path))
         target_prefix = os.path.join(os.path.relpath(self.install_dir),
                                      self.name, gyp_filename)
         for target in targets:
-            print '- %s::%s:%s' % (target.type, target_prefix, target.name)
+            print('- %s::%s:%s' % (target.type, target_prefix, target.name))
 
     def make(self):
         return list()

@@ -12,22 +12,22 @@ def build_target(dirname, library_name, target_name=None):
     curdir = os.path.abspath(os.path.curdir)
     target_id = '%s::%s' % (library_name, target_name)
 
-    print "* Build target: %s" % target_id
+    print("* Build target: %s" % target_id)
     library_dir = os.path.join(os.path.abspath(dirname), library_name)
     os.chdir(os.path.join(os.path.abspath(dirname), library_name))
 
     gyp_command = 'gyp --depth=. -f ninja %s.gyp' % library_name
-    print '* Run %r' % gyp_command
+    print('* Run %r' % gyp_command)
     if subprocess.call(gyp_command, shell=True) != 0:
         exit(1)
 
     # Compiles:
     ninja_command = 'ninja -C out/Debug/ %s' % target_name
-    print '* Run %r' % ninja_command
+    print('* Run %r' % ninja_command)
     if subprocess.call(ninja_command, shell=True) != 0:
         exit(1)
 
-    print "Target built successfully: %s" % target_id
+    print("Target built successfully: %s" % target_id)
     os.chdir(curdir)
 
     product_name = target_name
@@ -51,7 +51,7 @@ def import_module(module_name, search_paths):
     try:
         results = imp.find_module(module_name, search_paths)
     except ImportError:
-        print 'No matched module found: %r' % module
+        print('No matched module found: %r' % module)
         exit(1)
 
     for result in results:
@@ -80,5 +80,5 @@ def install_formula(library_name, dest_dir, gypfile_prefix,
                             installed_formulas, *args, **kwargs)
 
     formula.install()
-    print '#' * 3
+    print('#' * 3)
     return installed_formulas

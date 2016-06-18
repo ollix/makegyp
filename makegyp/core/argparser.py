@@ -72,7 +72,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def clean_parsed_args(self, parsed_args):
         # Removes duplicated values for list objects:
         parsed_args = vars(parsed_args);
-        for key, value in parsed_args.iteritems():
+        for key, value in parsed_args.items():
             if isinstance(value, list):
                 new_value = set()
                 for item in value:
@@ -108,8 +108,8 @@ class ArgumentParser(argparse.ArgumentParser):
             arg_string = re.sub(pattern[0], pattern[1], arg_string)
             args = self.__convert_arg_string_to_args(arg_string)
         else:
-            print '%r cannot parse argument %r' % (self.__class__.__name,
-                                                   arg_string)
+            print('%r cannot parse argument %r' %
+                  (self.__class__.__name, arg_string))
             exit(1)
 
         args = self.reorder_args(args)
@@ -227,6 +227,7 @@ class GccArgumentParser(ArgumentParser):
         self.add_argument('-g', action='append', nargs='*')
         self.add_argument('-l', action='append', dest='libs')
         self.add_argument('-L', action='append', dest='linkers')
+        self.add_argument('-isysroot')
         self.add_argument('-iquote', action='append')
         self.add_argument('-I', action='append', dest='include_dirs')
         self.add_argument('-install_name')
@@ -266,7 +267,7 @@ if __name__ == '__main__':
     parser = GccArgumentParser()
     pattern = parser.match_pattern(args)
     if pattern:
-        print 'Matched pattern:', pattern[0].pattern
-        print 'Matched sub:', re.sub(pattern[0], pattern[1], args)
+        print('Matched pattern: %r' % pattern[0].pattern)
+        print('Matched sub: %r %r %r' % (re.sub(pattern[0], pattern[1], args)))
     else:
-        print 'Not Matched'
+        print('Not Matched')

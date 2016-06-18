@@ -35,7 +35,7 @@ class Openssl(formula.Formula):
         for target in self.gyp['targets']:
             for source in target['sources']:
                 if source.endswith('.s'):
-                    print 'Copying source file: %s' % source
+                    print('Copying source file: %s' % source)
                     path_components = source.split('/')
                     source = os.path.join(self.tmp_package_root,
                                           *path_components)
@@ -45,7 +45,7 @@ class Openssl(formula.Formula):
         # Copies config files:
         config_file_paths = ['crypto/buildinf.h']
         for path in config_file_paths:
-            print 'Copying config file: %s' % path
+            print('Copying config file: %s' % path)
             source = os.path.join(self.tmp_package_root, *path.split('/'))
             dest = os.path.join(package_root, formula.kConfigRootDirectoryName,
                                 gyp.get_os(), self.default_target_arch,

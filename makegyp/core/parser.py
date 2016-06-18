@@ -1,4 +1,3 @@
-import exceptions
 import os
 import re
 import subprocess
@@ -117,7 +116,7 @@ class MakeParser(Parser):
                 current_directory = os.path.join(current_directory, '..')
                 current_directory = os.path.relpath(current_directory)
                 if current_directory.startswith('..'):
-                    print 'Cannot find target directory: %r' % target_directory
+                    print('Cannot find target directory: %r' % target_directory)
                     exit(1)
 
     def _handle_unknown_args(self, args):
@@ -152,7 +151,7 @@ class MakeParser(Parser):
             if os.path.isfile(config_file_path):
                 config_files.append(config_file_path)
             else:
-                print 'Failed to get config file at %r' % config_file_path
+                print('Failed to get config file at %r' % config_file_path)
 
         return config_files
 
@@ -239,7 +238,7 @@ class CmakeParser(Parser):
 
     def __get_target_defines(self, target_path):
         defines = set()
-        flag_file = file(os.path.join(target_path, 'flags.make'))
+        flag_file = open(os.path.join(target_path, 'flags.make'))
         for line in flag_file:
             if line.startswith('#'):
                 continue
@@ -252,7 +251,7 @@ class CmakeParser(Parser):
 
 
     def __merge_target_depend_info(self, target, depend_info_path):
-        depend_info_file = file(depend_info_path)
+        depend_info_file = open(depend_info_path)
         iterates_variable_values = False
 
         for line in depend_info_file:
@@ -309,7 +308,7 @@ class CmakeParser(Parser):
             path = os.path.join(path, 'link.txt')
 
         parsed_args = None
-        link_file = file(path)
+        link_file = open(path)
         for line in link_file:
             line = line.strip()
             if self.archiver_argument_parser.match_pattern(line):
@@ -320,7 +319,7 @@ class CmakeParser(Parser):
                 parsed_args = self.gcc_argument_parser.parse_args(line)
                 break
         else:
-            print 'Failed to find source files at %r' % path
+            print('Failed to find source files at %r' % path)
             exit(1)
         link_file.close()
 
@@ -341,7 +340,7 @@ class CmakeParser(Parser):
         targets = list()
 
         # Determines target directories:
-        target_directories_file = file(self.target_directories_path)
+        target_directories_file = open(self.target_directories_path)
         target_directories = target_directories_file.read()
         target_directories_file.close()
 
@@ -352,7 +351,7 @@ class CmakeParser(Parser):
                 continue
             target = self.__get_target(target_directory)
             if target is None:
-                print 'Failed to get target info at %r' % target_directory
+                print('Failed to get target info at %r' % target_directory)
                 exit(1)
             targets.append(target)
 
@@ -392,7 +391,7 @@ class GccParser(MakeParser):
                 current_directory = os.path.join(current_directory, '..')
                 current_directory = os.path.relpath(current_directory)
                 if current_directory == '..':
-                    print "Cannot find compiled object: %r" % source_path
+                    print("Cannot find compiled object: %r" % source_path)
                     exit(1)
 
         dirname = os.path.join(current_directory, parsed_args.output)
@@ -457,8 +456,8 @@ class GccParser(MakeParser):
                         target.dependencies.add(cached_target)
                         break
                 else:
-                    print 'Error: Cannot find dependent library %r' % \
-                        library_name
+                    print('Error: Cannot find dependent library %r' %
+                          library_name)
                     exit(1)
                 continue
 
@@ -476,10 +475,10 @@ class GccParser(MakeParser):
             try:
                 compiled_objects = self.compiled_objects[dirname]
             except KeyError:
-                print 'Error: Failed to add %r to target %r' % \
-                    (source_path, target_object_name)
-                print 'self.compiled_objects: %r is not in %r' %  \
-                    (dirname, self.compiled_objects.keys())
+                print('Error: Failed to add %r to target %r' %
+                      (source_path, target_object_name))
+                print('self.compiled_objects: %r is not in %r' %
+                      (dirname, self.compiled_objects.keys()))
                 exit(1)
             object_key = self._get_object_key(source_path)
             source_args = compiled_objects[object_key]

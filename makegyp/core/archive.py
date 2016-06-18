@@ -24,19 +24,19 @@ def extract_archive(src, dest=None):
     elif ext in tarfile_exts:
         # Makes sure the file is a valid tar archive.
         if not tarfile.is_tarfile(src):
-            print 'Invalid Tar archive: %s' % src
+            print('Invalid Tar archive: %s' % src)
             exit(1)
         archive = tarfile.open(src)
         archive.extractall(path=dest)
     elif ext in zip_exts:
         if not zipfile.is_zipfile(src):
-            print 'Invalid Zip archive: %s' % src
+            print('Invalid Zip archive: %s' % src)
             exit(1)
         archive = zipfile.ZipFile(src)
         archive.extractall(path=dest)
         archive.close()
     else:
-        print "Archive format is not supported: %r" % ext
+        print("Archive format is not supported: %r" % ext)
         exit(1)
 
 def splitext(name):

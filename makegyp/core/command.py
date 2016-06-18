@@ -6,10 +6,10 @@ from makegyp.core import utils
 
 
 def create(args):
-    print 'create:', args
+    print('create:', args)
 
 def edit(args):
-    print 'edit:', args
+    print('edit:', args)
 
 def install(args):
     formulas = set(args.formulas)
@@ -26,7 +26,7 @@ def install(args):
     # Adds libraries specified in `gyp_deps.txt` at the current directory:
     gyp_deps_path = os.path.join(curdir, 'gyp_deps.txt')
     if os.path.isfile(gyp_deps_path):
-        gyp_deps_file = file(gyp_deps_path, 'r')
+        gyp_deps_file = open(gyp_deps_path, 'r')
         config = eval(gyp_deps_file.read())
         gyp_deps_file.close()
         if 'dependencies' in config and \
@@ -39,9 +39,9 @@ def install(args):
                 include_gyp_files.add(os.path.join(base_dir, include))
 
     if not formulas:
-        print 'No formula is specified. You can specify formulas as ' \
-        'arguments or list them in the `gyp_deps.txt` file at the current ' \
-        'directory.'
+        print('No formula is specified. You can specify formulas as '
+              'arguments or list them in the `gyp_deps.txt` file at the current '
+              'directory.')
         exit(1)
 
     # Creates the gyp_deps subdirectory at the current directory for keeping
@@ -60,9 +60,9 @@ def install(args):
         utils.install_formula(formula, dest_dir, args.prefix,
                               include_gyp_files=include_gyp_files)
 
-    print '%r %s installed at %r' % (sorted(formulas),
+    print('%r %s installed at %r' % (sorted(formulas),
                                      'is' if len(formulas) == 1 else 'are',
-                                     dest_dir)
+                                     dest_dir))
 
 
 # Command configuration

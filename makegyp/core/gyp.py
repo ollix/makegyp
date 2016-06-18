@@ -59,7 +59,7 @@ class Target(object):
 
         The specified parsed_args must be a dictionary type.
         """
-        for key, value in parsed_args.iteritems():
+        for key, value in parsed_args.items():
             if key in self.ignored_cflags or key.startswith('_') or not value:
                 continue
 
